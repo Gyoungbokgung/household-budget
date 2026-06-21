@@ -850,7 +850,51 @@ let categoryEditingKey = null;
 let searchQuery = '';
 let sortOrder = 'latest';
 
-function save(){ localStorage.setItem('moneyDiary_v2', JSON.stringify(state)); }
+// ===== Supabase 설정 =====
+const SUPABASE_URL = 'https://fyoogqiohnbnykwcrkxt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_ByN6JQdBQuqAOzt5e9BaQw_q9Dd9Iq1';
+const SB_HEADERS = {
+  'Content-Type': 'application/json',
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY
+};
+
+let syncTimer = null;
+
+// 로컬 저장 (항상 즉시)
+function saveLocal(){
+  state.updatedAt = Date.now();
+  localStorage.setItem('moneyDiary_v2', JSON.stringify(state));
+}
+
+// Supabase 저장 (디바운스 1.5초 - 연속 입력시 마지막 한 번만)
+function save(){
+  saveLocal();
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(()=> syncToSupabase(), 1500);
+}
+
+async function syncToSupabase(){
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/budget_data?id=eq.main`, {
+      method: 'PATCH',
+      headers: SB_HEADERS,
+      body: JSON.stringify({ data: state, updated_at: new Date().toISOString() })
+    });
+  } catch(e){ console.log('sync failed', e); }
+}
+
+async function loadFromSupabase(){
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/budget_data?id=eq.main&select=data,updated_at`, {
+      headers: SB_HEADERS
+    });
+    const rows = await res.json();
+    if(!rows || !rows[0] || !rows[0].data || !rows[0].data.transactions) return null;
+    return rows[0].data;
+  } catch(e){ return null; }
+}
+
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -1879,7 +1923,38 @@ function resetAll(){
   }
 }
 
-render();
+// 앱 시작: Supabase 최신 데이터 로드
+(async function init(){
+  const remote = await loadFromSupabase();
+  if(remote && remote.transactions){
+    const localTime = state.updatedAt || 0;
+    const remoteTime = remote.updatedAt || 0;
+    if(remoteTime >= localTime){
+      state = remote;
+      state.transactions.forEach(t=>{
+        if(t.method===undefined) t.method='카드';
+        if(t.excluded===undefined) t.excluded=false;
+      });
+      if(!state.fixedExpenses) state.fixedExpenses={};
+      Object.entries(state.fixedExpenses).forEach(([key,list])=>{
+        list.forEach(f=>{
+          if(f.method===undefined) f.method='카드';
+          if(f.account===undefined) f.account=null;
+          if(f.recurring===undefined) f.recurring=true;
+          if(f.date===undefined) f.date=null;
+        });
+      });
+      if(!state.savings) state.savings=[];
+      if(!state.categories) state.categories=JSON.parse(JSON.stringify(DEFAULT_CATS));
+      rebuildIconMap();
+      if(!state.currentYear) state.currentYear=Number(state.currentMonth.split('-')[0]);
+      if(state.darkMode===undefined) state.darkMode=false;
+      if(state.darkMode) document.body.setAttribute('data-theme','dark');
+      saveLocal();
+    }
+  }
+  render();
+})();
 </script>
 </body>
 </html>
