@@ -330,6 +330,9 @@ nav.tabbar button.active{ color:var(--blue); }
 
 /* 저축 탭 */
 .savings-card{ background:var(--card); border-radius:var(--radius); padding:18px 20px; margin-bottom:10px; cursor:pointer; }
+.savings-card.dragging{ opacity:0.4; }
+.savings-card.drag-over{ outline:2px solid var(--blue); }
+.savings-handle{ color:var(--sub); font-size:16px; cursor:grab; margin-right:8px; flex-shrink:0; }
 .savings-card .top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
 .savings-card .top .name{ font-size:15.5px; font-weight:800; }
 .savings-card .top .bank{ font-size:12px; color:var(--sub); margin-top:2px; }
@@ -1642,6 +1645,38 @@ function renderYear(){
 
 /* ===== 저축 · 예금 ===== */
 let savingsEditingId = null;
+
+// 저축 드래그 순서 변경
+let savDragIdx = null;
+function savDragStart(e,i){ savDragIdx=i; e.currentTarget.classList.add('dragging'); }
+function savDragOver(e,i){ e.preventDefault(); document.querySelectorAll('#savingsList .savings-card').forEach((c,ci)=>c.classList.toggle('drag-over',ci===i&&i!==savDragIdx)); }
+function savDrop(e,i){
+  e.preventDefault();
+  if(savDragIdx===null||savDragIdx===i) return;
+  const moved = state.savings.splice(savDragIdx,1)[0];
+  state.savings.splice(i,0,moved);
+  save(); renderSavings();
+}
+function savDragEnd(e){
+  savDragIdx=null;
+  document.querySelectorAll('#savingsList .savings-card').forEach(c=>c.classList.remove('dragging','drag-over'));
+}
+
+// 자산 드래그 순서 변경
+let assetDragIdx = null;
+function assetDragStart(e,i){ assetDragIdx=i; e.currentTarget.classList.add('dragging'); }
+function assetDragOver(e,i){ e.preventDefault(); document.querySelectorAll('#assetsCard .asset-row[draggable]').forEach((r,ri)=>r.classList.toggle('drag-over',ri===i&&i!==assetDragIdx)); }
+function assetDrop(e,i){
+  e.preventDefault();
+  if(assetDragIdx===null||assetDragIdx===i) return;
+  const moved = state.assets.splice(assetDragIdx,1)[0];
+  state.assets.splice(i,0,moved);
+  save(); renderAssets();
+}
+function assetDragEnd(e){
+  assetDragIdx=null;
+  document.querySelectorAll('#assetsCard .asset-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+}
 let savingsType = 'install';
 let savingsConditions = [];
 
@@ -1688,7 +1723,7 @@ function renderSavings(){
     return;
   }
   const fmtYM = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
-  box.innerHTML = state.savings.map(s=>{
+  box.innerHTML = state.savings.map((s,i)=>{
     const r = calcSavings(s.minRate, s.maxRate, s.conditions, s.type, s.amount, s.months);
     const start = new Date(s.startDate);
     const end = new Date(start);
@@ -1711,27 +1746,34 @@ function renderSavings(){
       currentMonth = Math.min(Math.floor(diffMs / (1000*60*60*24*30)) + 1, totalMonths);
     }
     const progressCnt = s.type==='install' ? `${currentMonth}/${totalMonths}회차` : (now>=end ? '만기' : '진행중');
-    return `<div class="savings-card" onclick='openSavingsModal(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
+    return `<div class="savings-card" draggable="true" data-idx="${i}"
+      ondragstart="savDragStart(event,${i})" ondragover="savDragOver(event,${i})"
+      ondrop="savDrop(event,${i})" ondragend="savDragEnd(event)">
       <div class="top">
-        <div>
-          <div class="name">${s.name}</div>
-          <div class="bank">${s.bank||''}</div>
+        <div style="display:flex;align-items:flex-start;">
+          <span class="savings-handle" onclick="event.stopPropagation()">⠿</span>
+          <div onclick='openSavingsModal(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
+            <div class="name">${s.name}</div>
+            <div class="bank">${s.bank||''}</div>
+          </div>
         </div>
-        <div class="type-badge ${badgeCls}">${badgeText}</div>
+        <div class="type-badge ${badgeCls}" onclick='openSavingsModal(${JSON.stringify(s).replace(/'/g,"&apos;")})'>${badgeText}</div>
       </div>
-      <div class="grid3">
-        <div class="box"><div class="lab">적용금리</div><div class="val">${r.rate.toFixed(2)}%</div></div>
-        <div class="box"><div class="lab">${amountLabel}</div><div class="val">${fmtShort(s.amount)}</div></div>
-        <div class="box"><div class="lab">만기예상</div><div class="val">${fmtShort(r.maturity)}</div></div>
-      </div>
-      <div style="position:relative;">
-        <div class="progress-bg"><div class="progress-fill" style="width:${progress}%"></div></div>
-        <div class="savings-meta">
-          <span class="pay-date">📅 ${payDateStr}</span>
-          <span class="progress-cnt">${progressCnt}</span>
+      <div onclick='openSavingsModal(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
+        <div class="grid3">
+          <div class="box"><div class="lab">적용금리</div><div class="val">${r.rate.toFixed(2)}%</div></div>
+          <div class="box"><div class="lab">${amountLabel}</div><div class="val">${fmtShort(s.amount)}</div></div>
+          <div class="box"><div class="lab">만기예상</div><div class="val">${fmtShort(r.maturity)}</div></div>
         </div>
+        <div style="position:relative;">
+          <div class="progress-bg"><div class="progress-fill" style="width:${progress}%"></div></div>
+          <div class="savings-meta">
+            <span class="pay-date">📅 ${payDateStr}</span>
+            <span class="progress-cnt">${progressCnt}</span>
+          </div>
+        </div>
+        <div class="period">${fmtYM(start)} ~ ${fmtYM(end)} · ${s.months}개월</div>
       </div>
-      <div class="period">${fmtYM(start)} ~ ${fmtYM(end)} · ${s.months}개월</div>
     </div>`;
   }).join('');
 }
@@ -1961,13 +2003,16 @@ function renderAssets(){
   const total = state.assets.reduce((s,a)=>s+a.amount,0);
   let html = `<div class="asset-total"><span class="lab">💰 총 자산</span><span class="val">${fmt(total)}</span></div>`;
   html += `<div class="cat-card" style="padding:6px 18px;">`;
-  html += state.assets.map(a=>`
-    <div class="asset-row" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
-      <div style="flex:1; min-width:0;">
+  html += state.assets.map((a,i)=>`
+    <div class="asset-row" draggable="true"
+      ondragstart="assetDragStart(event,${i})" ondragover="assetDragOver(event,${i})"
+      ondrop="assetDrop(event,${i})" ondragend="assetDragEnd(event)">
+      <span class="drag-handle">⠿</span>
+      <div style="flex:1; min-width:0;" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
         <div class="name">${a.name}</div>
         ${a.accountNo ? `<div style="font-size:11.5px;color:var(--sub);margin-top:2px;">${a.accountNo}</div>` : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
         <span class="amt">${fmt(a.amount)}</span>
         <span style="font-size:11px;color:var(--sub);">수정</span>
       </div>
