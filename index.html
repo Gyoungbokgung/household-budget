@@ -152,8 +152,8 @@ main{ padding:0 16px; flex:1; }
   display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid var(--line);
 }
 .asset-row:last-child{ border-bottom:none; }
-.asset-row .name{ font-size:14.5px; font-weight:600; }
-.asset-row .amt{ font-size:14.5px; font-weight:800; }
+.asset-row .name{ font-size:14.5px; font-weight:600; flex:1; min-width:0; }
+.asset-row .amt{ font-size:14.5px; font-weight:800; white-space:nowrap; margin-left:8px; }
 .asset-row.total{ background:var(--blue-bg); margin:8px -18px -6px; padding:14px 18px; border-radius:0 0 var(--radius) var(--radius); border-bottom:none; }
 .asset-row.total .name, .asset-row.total .amt{ color:var(--blue); font-weight:800; }
 
@@ -201,6 +201,7 @@ nav.tabbar button.active{ color:var(--blue); }
 #modal{ z-index:55; }
 #savingsModal{ z-index:55; }
 #fixedModal{ z-index:55; }
+#assetModal{ z-index:55; }
 #categoryModal{ z-index:56; }
 .overlay.show{ display:flex; }
 .sheet{
@@ -399,6 +400,28 @@ select{ appearance:none; -webkit-appearance:none; }
 .fixed-tag{
   font-size:11px; color:var(--sub); font-weight:600; margin-left:6px;
 }
+/* 자산 카드 */
+.asset-card{
+  background:var(--card); border-radius:var(--radius); padding:18px 20px; margin-bottom:10px; cursor:pointer;
+}
+.asset-card .top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+.asset-card .ac-name{ font-size:15.5px; font-weight:800; }
+.asset-card .ac-no{ font-size:12px; color:var(--sub); margin-top:2px; }
+.asset-card .ac-amt{ font-size:20px; font-weight:800; margin-top:8px; }
+.asset-total{ background:var(--blue-bg); border-radius:var(--radius); padding:16px 20px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+.asset-total .lab{ font-size:13px; color:var(--blue); font-weight:700; }
+.asset-total .val{ font-size:18px; font-weight:800; color:var(--blue); }
+.asset-row.dragging{ opacity:0.4; background:var(--blue-bg); }
+.asset-row.drag-over{ border-top:2px solid var(--blue); }
+.drag-handle{ color:var(--sub); margin-right:8px; cursor:grab; font-size:14px; flex-shrink:0; }
+/* 카테고리 합계 표시 */
+.chip-total{ font-size:13px; font-weight:700; color:var(--ink); padding:6px 0 2px; }
+/* 저축 납입일 / 회차 */
+.savings-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:4px; }
+.savings-meta .pay-date{ font-size:11.5px; color:var(--sub); }
+.savings-meta .progress-cnt{ font-size:11px; color:var(--sub); font-weight:700; }
+/* 수입 버튼 강조 */
+.seg button.active.inc2{ background:#fff; color:var(--blue); box-shadow:0 1px 3px rgba(0,0,0,0.06); }
 input:focus{ outline:none; border-color:var(--blue); background:#fff; }
 .btn-row{ display:flex; gap:10px; margin-top:8px; }
 .btn-row .save{
@@ -433,20 +456,20 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
   <main>
     <div id="view-home">
       <div class="summary-card">
-        <div class="small">이번 달 쓴 돈</div>
-        <div class="big" id="varText">0원</div>
-        <div class="method-breakdown" id="methodBreakdown">카드 0원 · 현금 0원</div>
-        <div class="mom-compare" id="momCompare"></div>
-        <div class="grid2">
+        <div class="small">남은 돈</div>
+        <div class="big" id="balanceText">0원</div>
+        <div class="grid2" style="margin-bottom:12px;">
           <div class="box">
             <div class="lab"><span class="tri">▲</span>수입</div>
-            <div class="val income-color" id="incomeText">0원</div>
+            <div class="val income-color" id="incomeText">+0원</div>
           </div>
           <div class="box">
-            <div class="lab"><span class="tri" style="color:var(--sub);">●</span>남은 돈</div>
-            <div class="val" id="balanceText">0원</div>
+            <div class="lab"><span class="tri" style="color:var(--red);">▼</span>지출</div>
+            <div class="val" style="color:var(--red);" id="varText">-0원</div>
           </div>
         </div>
+        <div class="method-breakdown" id="methodBreakdown">💳 카드 0원 · 💵 현금 0원</div>
+        <div class="mom-compare" id="momCompare"></div>
       </div>
 
       <div class="cat-card">
@@ -470,7 +493,7 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     <div id="view-list" style="display:none;">
       <div class="seg" style="margin-top:4px;">
         <button id="seg-list-list" class="active neutral" onclick="setListView('list')">리스트</button>
-        <button id="seg-list-cal" onclick="setListView('calendar')">달력</button>
+        <button id="seg-list-cal" class="neutral" onclick="setListView('calendar')">달력</button>
       </div>
       <div id="list-sub-list">
         <div class="search-box">
@@ -479,6 +502,7 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
           <span class="clear" id="searchClear" onclick="clearSearch()">✕</span>
         </div>
         <div class="chip-row" id="filterChips"></div>
+        <div class="chip-total" id="chipTotal"></div>
         <div class="section-title with-sort">
           <span id="fullListTitle">이번 달 전체 내역</span>
           <select class="sort-select" id="sortSelect" onchange="onSortChange(this.value)">
@@ -551,13 +575,8 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
 
     <div id="view-assets" style="display:none;">
       <div class="section-title">자산 현황</div>
-      <div class="cat-card" id="assetsCard"></div>
-      <div class="section-title">계좌/자산 추가</div>
-      <div class="cat-card">
-        <div class="field"><label>이름</label><input type="text" id="assetName" placeholder="예: 국민 예금"></div>
-        <div class="field" style="margin-bottom:8px;"><label>금액</label><input type="text" inputmode="numeric" id="assetAmt" placeholder="0"></div>
-        <button class="day-add-btn" style="width:100%; margin-top:8px;" onclick="addAsset()"><span class="plus-circle">＋</span>계좌/자산 추가하기</button>
-      </div>
+      <div id="assetsCard"></div>
+      <button class="day-add-btn" style="width:100%; margin-top:4px;" onclick="openAssetModal()"><span class="plus-circle">＋</span>계좌/자산 추가하기</button>
     </div>
 
     <div id="view-settings" style="display:none;">
@@ -601,7 +620,7 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     </div>
   </main>
 
-  <div class="fab"><button onclick="openModal()">＋</button></div>
+  <div class="fab"><button onclick="multiAddMode=false; openModal(null, null, false)">＋</button></div>
 
   <nav class="tabbar">
     <button class="active" onclick="switchTab('home')"><span class="ic">🏠</span>홈</button>
@@ -619,7 +638,7 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     <h2 id="sheetTitle">내역 추가</h2>
     <div class="seg">
       <button id="seg-expense" class="active exp" onclick="setType('expense')">지출</button>
-      <button id="seg-income" onclick="setType('income')">수입</button>
+      <button id="seg-income" class="inc2" onclick="setType('income')">수입</button>
     </div>
     <div class="field">
       <label>금액</label>
@@ -654,14 +673,41 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
         <span class="slider"></span>
       </label>
     </div>
-    <div class="btn-row">
+    <div class="btn-row" id="saveBtnRow">
       <button class="delete" id="deleteBtn" style="display:none;" onclick="deleteCurrent()">이 내역 삭제</button>
-      <button class="save" onclick="saveTx()">저장하기</button>
+      <button class="save" onclick="saveTx(false)">저장하기</button>
+    </div>
+    <div id="continueAddRow" style="display:none; margin-top:8px;">
+      <button class="day-add-btn small" style="width:100%;" onclick="saveTx(true)"><span class="plus-circle">＋</span>이어서 내역 추가</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 자산 추가·수정 시트 -->
+<div class="overlay" id="assetModal">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="assetSheetTitle">자산 추가</h2>
+    <div class="field">
+      <label>이름</label>
+      <input type="text" id="assetName" placeholder="예: 국민 예금, 카카오뱅크">
+    </div>
+    <div class="field">
+      <label>계좌번호 (선택)</label>
+      <input type="text" id="assetAccountNo" placeholder="예: 1234-56-7890">
+    </div>
+    <div class="field">
+      <label>현재 잔액</label>
+      <div class="amount-display"><input type="text" inputmode="numeric" id="assetAmt" placeholder="0"><span class="unit">원</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="delete" id="assetDeleteBtn" style="display:none;" onclick="deleteAssetFromModal()">삭제</button>
+      <button class="save" onclick="saveAsset()">저장하기</button>
+    </div>
+  </div>
+</div>
 
 <!-- 고정지출 추가·수정 시트 -->
 <div class="overlay" id="fixedModal">
@@ -961,8 +1007,9 @@ function switchTab(tab){
   if(tab==='settings') renderCatMgmtList();
 }
 
-function openModal(tx, presetDate){
+function openModal(tx, presetDate, showContinue){
   document.getElementById('modal').classList.add('show');
+  document.getElementById('continueAddRow').style.display = showContinue ? 'block' : 'none';
   if(tx){
     editingId = tx.id;
     document.getElementById('sheetTitle').textContent = '내역 수정';
@@ -991,7 +1038,9 @@ document.getElementById('modal').addEventListener('click', e=>{ if(e.target.id==
 function setType(t, presetCat){
   curType = t;
   document.getElementById('seg-expense').classList.toggle('active', t==='expense');
+  document.getElementById('seg-expense').classList.toggle('exp', t==='expense');
   document.getElementById('seg-income').classList.toggle('active', t==='income');
+  document.getElementById('seg-income').classList.toggle('inc2', t==='income');
   document.getElementById('methodField').style.display = (t==='expense') ? 'block' : 'none';
   renderCatGrid(presetCat);
 }
@@ -1027,7 +1076,7 @@ document.getElementById('fixedAmt').addEventListener('input', e=>{
   e.target.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
 });
 
-function saveTx(){
+function saveTx(keepOpen){
   const amount = Number(document.getElementById('amount').value.replace(/,/g,''));
   const date = document.getElementById('date').value;
   const memo = document.getElementById('memo').value.trim();
@@ -1042,10 +1091,19 @@ function saveTx(){
     state.transactions.push({ id: Date.now(), type: curType, category: curCat, memo: memo || curCat, amount, date, method, excluded });
   }
   save();
-  closeModal();
   state.currentMonth = date.slice(0,7);
-  render();
-  toast('저장됐어요');
+  if(keepOpen && !editingId){
+    // 이어서 추가: 금액·메모만 초기화, 날짜·카테고리·결제수단 유지
+    document.getElementById('amount').value = '';
+    document.getElementById('memo').value = '';
+    document.getElementById('excludeToggle').checked = false;
+    render();
+    toast('저장됐어요 ✓ 이어서 입력해주세요');
+  } else {
+    closeModal();
+    render();
+    toast('저장됐어요');
+  }
 }
 function deleteCurrent(){
   if(!editingId) return;
@@ -1073,15 +1131,15 @@ function render(){
   const savingsTotal = getSavingsForMonth(state.currentMonth);
   const balance = income - fixedTotal - expense - savingsTotal;
 
-  document.getElementById('varText').textContent = fmt(expense);
-  document.getElementById('incomeText').textContent = fmt(income);
+  document.getElementById('varText').textContent = '-' + fmt(expense + fixedTotal + savingsTotal);
+  document.getElementById('incomeText').textContent = '+' + fmt(income);
   document.getElementById('balanceText').textContent = fmt(balance);
 
   // 카드/현금 분리
   const expenseCounted = counted.filter(t=>t.type==='expense');
   const cardTotal = expenseCounted.filter(t=>(t.method||'카드')==='카드').reduce((s,t)=>s+t.amount,0);
   const cashTotal = expenseCounted.filter(t=>t.method==='현금').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('methodBreakdown').innerHTML = `카드 <b>${fmt(cardTotal)}</b> · 현금 <b>${fmt(cashTotal)}</b>`;
+  document.getElementById('methodBreakdown').innerHTML = `💳 카드 <b>${fmt(cardTotal)}</b> · 💵 현금 <b>${fmt(cashTotal)}</b>`;
 
   // 전월 대비 비교
   const prevKey = getPrevMonthKey(state.currentMonth);
@@ -1248,6 +1306,8 @@ function setListView(view){
   listView = view;
   document.getElementById('seg-list-list').classList.toggle('active', view==='list');
   document.getElementById('seg-list-cal').classList.toggle('active', view==='calendar');
+  document.getElementById('seg-list-list').classList.add('neutral');
+  document.getElementById('seg-list-cal').classList.add('neutral');
   document.getElementById('list-sub-list').style.display = (view==='list')?'block':'none';
   document.getElementById('list-sub-calendar').style.display = (view==='calendar')?'block':'none';
   if(view==='calendar') renderCalendar();
@@ -1328,10 +1388,14 @@ function renderDaySheet(dateStr){
   renderTxList('dayTxList', list);
 }
 
+let multiAddMode = false;
+
 function addTxForDay(){
+  multiAddMode = true;
   const date = selectedDay || new Date().toISOString().slice(0,10);
-  openModal(null, date);
+  openModal(null, date, true);
 }
+function addTxForDayMulti(){ addTxForDay(); }
 
 function getFixedList(){
   return state.fixedExpenses[state.currentMonth] || [];
@@ -1353,11 +1417,12 @@ function setFixedMethod(m){
 }
 function populateFixedAccountSelect(){
   const sel = document.getElementById('fixedAccount');
+  if(!sel) return;
   if(state.assets.length===0){
     sel.innerHTML = `<option value="">등록된 계좌가 없어요 (자산 탭에서 추가)</option>`;
     return;
   }
-  sel.innerHTML = state.assets.map(a=>`<option value="${a.name}">${a.name}</option>`).join('');
+  sel.innerHTML = state.assets.map(a=>`<option value="${a.name}">${a.name}${a.accountNo ? ' ('+a.accountNo+')' : ''}</option>`).join('');
 }
 function renderFixedCard(){
   const desc = document.getElementById('fixedDesc');
@@ -1370,15 +1435,37 @@ function renderFixedCard(){
   }
   const total = list.reduce((s,f)=>s+f.amount,0);
   desc.textContent = `이번 달 고정 지출 총 ${fmt(total)}`;
-  rows.innerHTML = list.map(f=>{
+  rows.innerHTML = list.map((f,i)=>{
     let tag = f.method==='현금' ? `현금${f.account ? ' · '+f.account : ''}` : '카드';
     const recur = f.recurring!==false ? ' 🔁' : '';
     const dateStr = f.date ? ` · ${Number(f.date.split('-')[1])}/${Number(f.date.split('-')[2])}` : '';
-    return `<div class="asset-row" onclick='openFixedModal(${JSON.stringify(f).replace(/'/g,"&apos;")})'>
-      <span class="name">${f.name}${recur}<span class="fixed-tag">${tag}${dateStr}</span></span>
-      <span class="amt">${fmt(f.amount)}</span>
+    return `<div class="asset-row" draggable="true" data-idx="${i}"
+      ondragstart="fixedDragStart(event,${i})"
+      ondragover="fixedDragOver(event,${i})"
+      ondrop="fixedDrop(event,${i})"
+      ondragend="fixedDragEnd(event)">
+      <span class="drag-handle" title="드래그해서 순서 변경">⠿</span>
+      <span class="name" onclick='openFixedModal(${JSON.stringify(f).replace(/'/g,"&apos;")})'>${f.name}${recur}<span class="fixed-tag">${tag}${dateStr}</span></span>
+      <span class="amt" onclick='openFixedModal(${JSON.stringify(f).replace(/'/g,"&apos;")})'>${fmt(f.amount)}</span>
     </div>`;
   }).join('');
+}
+
+let fixedDragIdx = null;
+function fixedDragStart(e, i){ fixedDragIdx = i; e.currentTarget.classList.add('dragging'); }
+function fixedDragOver(e, i){ e.preventDefault(); document.querySelectorAll('#fixedRows .asset-row').forEach((r,ri)=>r.classList.toggle('drag-over', ri===i && i!==fixedDragIdx)); }
+function fixedDrop(e, i){
+  e.preventDefault();
+  if(fixedDragIdx===null || fixedDragIdx===i) return;
+  const list = getFixedList();
+  const moved = list.splice(fixedDragIdx, 1)[0];
+  list.splice(i, 0, moved);
+  state.fixedExpenses[state.currentMonth] = list;
+  save(); renderFixedCard();
+}
+function fixedDragEnd(e){
+  fixedDragIdx = null;
+  document.querySelectorAll('#fixedRows .asset-row').forEach(r=>{ r.classList.remove('dragging','drag-over'); });
 }
 
 let fixedEditingId = null;
@@ -1470,6 +1557,7 @@ function copyLastMonthFixed(){
 
 function renderChips(monthTx){
   const box = document.getElementById('filterChips');
+  const totalEl = document.getElementById('chipTotal');
   const seen = new Set();
   monthTx.forEach(t=>seen.add(t.category));
   const cats = [...seen];
@@ -1478,6 +1566,16 @@ function renderChips(monthTx){
     `<div class="chip ${categoryFilter===c?'active':''}" onclick="setCategoryFilter('${c}')">${ICON_MAP[c]||''} ${c}</div>`
   ).join('');
   box.innerHTML = html;
+  const filtered = categoryFilter===null ? monthTx : monthTx.filter(t=>t.category===categoryFilter);
+  const expTotal = filtered.filter(t=>t.type==='expense'&&!t.excluded).reduce((s,t)=>s+t.amount,0);
+  const incTotal = filtered.filter(t=>t.type==='income'&&!t.excluded).reduce((s,t)=>s+t.amount,0);
+  if(totalEl){
+    const label = categoryFilter===null ? '전체' : `${ICON_MAP[categoryFilter]||''} ${categoryFilter}`;
+    let parts = [];
+    if(expTotal>0) parts.push(`지출 <b style="color:var(--red)">-${fmt(expTotal)}</b>`);
+    if(incTotal>0) parts.push(`수입 <b style="color:var(--green)">+${fmt(incTotal)}</b>`);
+    totalEl.innerHTML = parts.length ? `${label} 합계 · ${parts.join(' · ')}` : '';
+  }
 }
 function setCategoryFilter(cat){
   categoryFilter = cat;
@@ -1518,7 +1616,10 @@ function renderYear(){
     const savings = isFuture ? 0 : getSavingsForMonth(key);
     const expenseTotal = fixed + exp;
     const net = inc - savings - expenseTotal;
-    yearIncome += inc; yearExpense += exp; yearFixed += fixed; yearSavings += savings;
+    yearIncome += isFuture ? 0 : inc;
+    yearExpense += isFuture ? 0 : exp;
+    yearFixed += isFuture ? 0 : fixed;
+    yearSavings += isFuture ? 0 : savings;
 
     const hasData = !isFuture && (inc>0 || exp>0 || fixed>0 || savings>0);
     const netColor = net>=0 ? 'var(--ink)' : 'var(--red)';
@@ -1599,6 +1700,17 @@ function renderSavings(){
     const badgeCls = s.type==='install' ? 'install' : 'deposit';
     const badgeText = s.type==='install' ? '적금' : '예금';
     const amountLabel = s.type==='install' ? '월 납입' : '예치금';
+    // 납입일 계산
+    const payDay = start.getDate();
+    const payDateStr = s.type==='install' ? `매달 ${payDay}일 납입` : `${fmtYM(start)} 예치`;
+    // 회차 계산
+    const totalMonths = Number(s.months)||0;
+    let currentMonth = 0;
+    if(now>=start){
+      const diffMs = now - start;
+      currentMonth = Math.min(Math.floor(diffMs / (1000*60*60*24*30)) + 1, totalMonths);
+    }
+    const progressCnt = s.type==='install' ? `${currentMonth}/${totalMonths}회차` : (now>=end ? '만기' : '진행중');
     return `<div class="savings-card" onclick='openSavingsModal(${JSON.stringify(s).replace(/'/g,"&apos;")})'>
       <div class="top">
         <div>
@@ -1612,7 +1724,13 @@ function renderSavings(){
         <div class="box"><div class="lab">${amountLabel}</div><div class="val">${fmtShort(s.amount)}</div></div>
         <div class="box"><div class="lab">만기예상</div><div class="val">${fmtShort(r.maturity)}</div></div>
       </div>
-      <div class="progress-bg"><div class="progress-fill" style="width:${progress}%"></div></div>
+      <div style="position:relative;">
+        <div class="progress-bg"><div class="progress-fill" style="width:${progress}%"></div></div>
+        <div class="savings-meta">
+          <span class="pay-date">📅 ${payDateStr}</span>
+          <span class="progress-cnt">${progressCnt}</span>
+        </div>
+      </div>
       <div class="period">${fmtYM(start)} ~ ${fmtYM(end)} · ${s.months}개월</div>
     </div>`;
   }).join('');
@@ -1834,34 +1952,83 @@ function deleteCategory(){
 }
 
 function renderAssets(){
-  const card = document.getElementById('assetsCard');
+  const box = document.getElementById('assetsCard');
+  if(!box) return;
   if(state.assets.length===0){
-    card.innerHTML = `<div class="empty"><span class="big">💳</span>등록된 자산이 없어요</div>`;
+    box.innerHTML = `<div class="empty"><span class="big">💳</span>등록된 자산이 없어요</div>`;
     return;
   }
-  let total = 0;
-  let rows = state.assets.map(a=>{
-    total += a.amount;
-    return `<div class="asset-row" onclick="deleteAsset(${a.id})"><span class="name">${a.name}</span><span class="amt">${fmt(a.amount)}</span></div>`;
-  }).join('');
-  rows += `<div class="asset-row total"><span class="name">총 자산</span><span class="amt">${fmt(total)}</span></div>`;
-  card.innerHTML = rows;
+  const total = state.assets.reduce((s,a)=>s+a.amount,0);
+  let html = `<div class="asset-total"><span class="lab">💰 총 자산</span><span class="val">${fmt(total)}</span></div>`;
+  html += `<div class="cat-card" style="padding:6px 18px;">`;
+  html += state.assets.map(a=>`
+    <div class="asset-row" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
+      <div style="flex:1; min-width:0;">
+        <div class="name">${a.name}</div>
+        ${a.accountNo ? `<div style="font-size:11.5px;color:var(--sub);margin-top:2px;">${a.accountNo}</div>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="amt">${fmt(a.amount)}</span>
+        <span style="font-size:11px;color:var(--sub);">수정</span>
+      </div>
+    </div>`).join('');
+  html += `</div>`;
+  box.innerHTML = html;
 }
-function addAsset(){
-  const name = document.getElementById('assetName').value.trim();
-  const amt = Number(document.getElementById('assetAmt').value.replace(/,/g,''));
-  if(!name || !amt){ toast('이름과 금액을 입력해주세요'); return; }
-  state.assets.push({id:Date.now(), name, amount:amt});
-  document.getElementById('assetName').value='';
-  document.getElementById('assetAmt').value='';
-  save(); render();
-  toast('자산이 추가됐어요');
-}
-function deleteAsset(id){
-  if(confirm('이 자산을 삭제할까요?')){
-    state.assets = state.assets.filter(a=>a.id!==id);
-    save(); render();
+
+let assetEditingId = null;
+function openAssetModal(a){
+  document.getElementById('assetModal').classList.add('show');
+  if(a && a.id){
+    assetEditingId = a.id;
+    document.getElementById('assetSheetTitle').textContent = '자산 수정';
+    document.getElementById('assetDeleteBtn').style.display = 'block';
+    document.getElementById('assetName').value = a.name || '';
+    document.getElementById('assetAccountNo').value = a.accountNo || '';
+    document.getElementById('assetAmt').value = a.amount ? fmtNum(a.amount) : '';
+  } else {
+    assetEditingId = null;
+    document.getElementById('assetSheetTitle').textContent = '자산 추가';
+    document.getElementById('assetDeleteBtn').style.display = 'none';
+    document.getElementById('assetName').value = '';
+    document.getElementById('assetAccountNo').value = '';
+    document.getElementById('assetAmt').value = '';
   }
+}
+function closeAssetModal(){ document.getElementById('assetModal').classList.remove('show'); }
+document.getElementById('assetModal').addEventListener('click', e=>{ if(e.target.id==='assetModal') closeAssetModal(); });
+
+document.getElementById('assetAmt').addEventListener('input', e=>{
+  const raw = e.target.value.replace(/[^0-9]/g,'');
+  e.target.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+});
+
+function saveAsset(){
+  const name = document.getElementById('assetName').value.trim();
+  const accountNo = document.getElementById('assetAccountNo').value.trim();
+  const amount = Number(document.getElementById('assetAmt').value.replace(/,/g,''))||0;
+  if(!name){ toast('이름을 입력해주세요'); return; }
+  if(assetEditingId){
+    const a = state.assets.find(x=>x.id===assetEditingId);
+    if(a){ a.name=name; a.accountNo=accountNo; a.amount=amount; }
+  } else {
+    state.assets.push({id:Date.now(), name, accountNo, amount});
+  }
+  save(); closeAssetModal(); render();
+  toast('저장됐어요');
+}
+function deleteAssetFromModal(){
+  if(!assetEditingId) return;
+  if(confirm('이 자산을 삭제할까요?')){
+    state.assets = state.assets.filter(a=>a.id!==assetEditingId);
+    save(); closeAssetModal(); render();
+    toast('삭제됐어요');
+  }
+}
+function addAsset(){ openAssetModal(); }
+function deleteAsset(id){
+  state.assets = state.assets.filter(a=>a.id!==id);
+  save(); render();
 }
 
 function exportData(){
