@@ -208,6 +208,7 @@ nav.tabbar button.active{ color:var(--blue); }
 #transferModal{ z-index:56; }
 #adjModal{ z-index:56; }
 #maturityModal{ z-index:56; }
+#depositModal{ z-index:56; }
 #categoryModal{ z-index:56; }
 .overlay.show{ display:flex; }
 .sheet{
@@ -606,40 +607,70 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       </div>
       <!-- 증권사 상세 -->
       <div id="invest-detail" style="display:none;">
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <button onclick="closeInvestDetail()" style="border:none;background:none;font-size:20px;color:var(--sub);cursor:pointer;">‹</button>
           <span style="font-size:18px;font-weight:800;" id="detailBrokerName"></span>
         </div>
-        <!-- 원화 섹션 -->
+        <!-- 예수금 -->
         <div class="cat-card" style="margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <span style="font-size:15px;font-weight:800;">🇰🇷 원화</span>
-            <span style="font-size:18px;font-weight:800;" id="krwTotal">0원</span>
-          </div>
-          <div id="krwRows"></div>
-          <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('krw')"><span class="plus-circle">＋</span>내역 추가</button>
-        </div>
-        <!-- 달러 환전 섹션 -->
-        <div class="cat-card" style="margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:15px;font-weight:800;">💵 달러 환전</span>
-            <div style="text-align:right;">
-              <div style="font-size:16px;font-weight:800;" id="usdTotal">$0</div>
-              <div style="font-size:11.5px;color:var(--sub);" id="usdAvgRate">평균환율 -</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:12px;color:var(--sub);margin-bottom:4px;">💵 예수금</div>
+              <div style="font-size:20px;font-weight:800;" id="depositAmt">0원</div>
             </div>
+            <span style="font-size:12px;color:var(--sub);cursor:pointer;padding:6px 10px;background:var(--bg);border-radius:8px;" onclick="openDepositModal()">수정</span>
           </div>
-          <div id="fxRows"></div>
-          <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('fx')"><span class="plus-circle">＋</span>환전 내역 추가</button>
         </div>
-        <!-- 달러 수익 섹션 -->
-        <div class="cat-card" style="margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <span style="font-size:15px;font-weight:800;">📈 달러 수익</span>
-            <span style="font-size:16px;font-weight:800;" id="usdProfitTotal">$0</span>
+        <!-- 국내/미국 탭 -->
+        <div class="seg" style="margin-bottom:12px;">
+          <button id="seg-inv-kr" class="active neutral" onclick="setInvestMarket('kr')">🇰🇷 국내주식</button>
+          <button id="seg-inv-us" class="neutral" onclick="setInvestMarket('us')">🇺🇸 미국주식</button>
+        </div>
+        <!-- 국내주식 -->
+        <div id="invest-kr">
+          <div class="cat-card" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleInvSection('krw')">
+              <span style="font-size:15px;font-weight:800;">🇰🇷 실현손익 · 배당</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:16px;font-weight:800;" id="krwTotal">0원</span>
+                <span id="krw-chevron" style="color:var(--sub);">▾</span>
+              </div>
+            </div>
+            <div id="krw-body" style="margin-top:12px;"><div id="krwRows"></div></div>
+            <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('krw')"><span class="plus-circle">＋</span>내역 추가</button>
           </div>
-          <div style="font-size:12px;color:var(--sub);margin-bottom:12px;">미국주식 실현손익 + 배당금 (환전 달러와 별도)</div>
-          <div id="usdProfitRows"></div>
-          <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('usd_profit')"><span class="plus-circle">＋</span>수익 추가</button>
+        </div>
+        <!-- 미국주식 -->
+        <div id="invest-us" style="display:none;">
+          <div class="cat-card" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleInvSection('usdp')">
+              <span style="font-size:15px;font-weight:800;">📈 실현손익 · 배당</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:16px;font-weight:800;" id="usdProfitTotal">$0</span>
+                <span id="usdp-chevron" style="color:var(--sub);">▾</span>
+              </div>
+            </div>
+            <div id="usdp-body" style="margin-top:12px;">
+              <div style="font-size:12px;color:var(--sub);margin-bottom:10px;">환전 달러와 별도로 기록돼요</div>
+              <div id="usdProfitRows"></div>
+            </div>
+            <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('usd_profit')"><span class="plus-circle">＋</span>수익 추가</button>
+          </div>
+          <div class="cat-card" style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleInvSection('fx')">
+              <span style="font-size:15px;font-weight:800;">💵 달러 환전</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="text-align:right;">
+                  <div style="font-size:14px;font-weight:800;" id="usdTotal">$0</div>
+                  <div style="font-size:11px;color:var(--sub);" id="usdAvgRate">평균환율 -</div>
+                  <div style="font-size:11px;color:var(--sub);" id="usdKrwTotal"></div>
+                </div>
+                <span id="fx-chevron" style="color:var(--sub);">▾</span>
+              </div>
+            </div>
+            <div id="fx-body" style="margin-top:12px;"><div id="fxRows"></div></div>
+            <button class="day-add-btn small" style="width:100%;margin-top:10px;" onclick="openInvestRecordModal('fx')"><span class="plus-circle">＋</span>환전 내역 추가</button>
+          </div>
         </div>
       </div>
     </div>
@@ -655,20 +686,9 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       <div id="assetsCard"></div>
       <button class="day-add-btn" style="width:100%; margin-top:4px;" onclick="openAssetModal()"><span class="plus-circle">＋</span>계좌/자산 추가하기</button>
 
-      <div class="section-title" style="margin-top:24px;">📅 계좌 개설 가능일 계산</div>
-      <div class="cat-card">
-        <div style="font-size:13px;color:var(--sub);margin-bottom:12px;">계좌 생성일 기준 20 영업일 후 같은 은행에 새 계좌를 만들 수 있어요</div>
-        <div class="field"><label>계좌 생성일</label><input type="date" id="bizCalcDate"></div>
-        <div class="field" style="margin-bottom:8px;"><label>영업일 수 (기본 20일)</label><input type="text" inputmode="numeric" id="bizCalcDays" value="20"></div>
-        <button class="day-add-btn small" style="width:100%;" onclick="calcBizDay()"><span class="plus-circle">→</span>개설 가능일 계산</button>
-        <div id="bizCalcResult" style="margin-top:14px;display:none;">
-          <div class="preview-box">
-            <div class="row"><span class="l">생성일</span><span class="v" id="bizResultFrom"></span></div>
-            <div class="row"><span class="l">영업일 수</span><span class="v" id="bizResultDays"></span></div>
-            <div class="row final"><span class="l">개설 가능일</span><span class="v" id="bizResultDate"></span></div>
-            <div style="font-size:12px;color:var(--sub);margin-top:8px;" id="bizResultNote"></div>
-          </div>
-        </div>
+      <div class="section-title" style="margin-top:24px;">📅 계좌 재개설 가능일</div>
+      <div class="cat-card" id="bizAvailCard">
+        <div style="font-size:13px;color:var(--sub);">개설일이 등록된 자산이 없어요<br><span style="font-size:12px;">자산 수정에서 계좌 개설일을 입력하면 자동으로 표시돼요</span></div>
       </div>
     </div>
 
@@ -780,6 +800,22 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     </div>
     <div id="continueAddRow" style="display:none; margin-top:8px;">
       <button class="day-add-btn small" style="width:100%;" onclick="saveTx(true)"><span class="plus-circle">＋</span>이어서 내역 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 예수금 수정 모달 -->
+<div class="overlay" id="depositModal">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>예수금 수정</h2>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:16px;">증권사 계좌에 있는 미투자 현금이에요</div>
+    <div class="field">
+      <label>예수금</label>
+      <div class="amount-display"><input type="text" inputmode="numeric" id="depositAmtInput" placeholder="0"><span class="unit">원</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="save" onclick="saveDeposit()">저장하기</button>
     </div>
   </div>
 </div>
@@ -899,18 +935,25 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       <div class="field">
         <label>구분</label>
         <div class="seg">
-          <button id="seg-ir-seed" class="active neutral" onclick="setKrwType('seed')">씨드(입금)</button>
-          <button id="seg-ir-profit" class="neutral" onclick="setKrwType('profit')">실현손익</button>
+          <button id="seg-ir-profit" class="active neutral" onclick="setKrwType('profit')">실현손익</button>
           <button id="seg-ir-dividend" class="neutral" onclick="setKrwType('dividend')">배당금</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>손익 부호</label>
+        <div class="seg">
+          <button id="seg-kr-plus" class="active neutral" onclick="setKrwSign(1)">+ 수익</button>
+          <button id="seg-kr-minus" class="neutral" onclick="setKrwSign(-1)">- 손실</button>
         </div>
       </div>
       <div class="field">
         <label>금액</label>
         <div class="amount-display"><input type="text" inputmode="numeric" id="irKrwAmt" placeholder="0"><span class="unit">원</span></div>
       </div>
-      <div class="field" id="irKrwTickerField" style="display:none;">
+      <div class="field">
         <label>종목명 (선택)</label>
-        <input type="text" id="irKrwTicker" placeholder="예: 삼성전자, KODEX200">
+        <input type="text" id="irKrwTicker" placeholder="예: 삼성전자, KODEX200" list="krwTickerList" autocomplete="off">
+        <datalist id="krwTickerList"></datalist>
       </div>
     </div>
     <!-- FX 필드 -->
@@ -937,12 +980,20 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
         </div>
       </div>
       <div class="field">
+        <label>손익 부호</label>
+        <div class="seg">
+          <button id="seg-us-plus" class="active neutral" onclick="setUsdSign(1)">+ 수익</button>
+          <button id="seg-us-minus" class="neutral" onclick="setUsdSign(-1)">- 손실</button>
+        </div>
+      </div>
+      <div class="field">
         <label>금액 ($)</label>
         <div class="amount-display"><input type="text" inputmode="decimal" id="irUsdAmt" placeholder="0"><span class="unit">$</span></div>
       </div>
       <div class="field">
         <label>종목명 (선택)</label>
-        <input type="text" id="irUsdTicker" placeholder="예: NVDA, SCHD">
+        <input type="text" id="irUsdTicker" placeholder="예: NVDA, SCHD" list="usdTickerList" autocomplete="off">
+        <datalist id="usdTickerList"></datalist>
       </div>
     </div>
     <!-- 공통 -->
@@ -2364,11 +2415,73 @@ function deleteCategory(){
 
 /* ===== 투자 탭 ===== */
 let currentBrokerId = null;
-let irType = 'krw'; // krw | fx | usd_profit
-let krwType = 'seed'; // seed | profit | dividend
-let usdProfitType = 'profit'; // profit | dividend
+let irType = 'krw';
+let krwType = 'profit';
+let krwSign = 1;
+let usdSign = 1;
+let usdProfitType = 'profit';
 let irEditingId = null;
 let brokerEditingId = null;
+let currentMarket = 'kr';
+const invSectionState = {krw:true, usdp:true, fx:true};
+
+function setInvestMarket(m){
+  currentMarket = m;
+  document.getElementById('seg-inv-kr').classList.toggle('active', m==='kr');
+  document.getElementById('seg-inv-us').classList.toggle('active', m==='us');
+  document.getElementById('invest-kr').style.display = m==='kr'?'block':'none';
+  document.getElementById('invest-us').style.display = m==='us'?'block':'none';
+}
+function toggleInvSection(key){
+  invSectionState[key] = !invSectionState[key];
+  const body = document.getElementById(key+'-body');
+  const chev = document.getElementById(key+'-chevron');
+  if(body) body.style.display = invSectionState[key]?'block':'none';
+  if(chev) chev.textContent = invSectionState[key]?'▾':'▸';
+}
+function setKrwSign(s){
+  krwSign=s;
+  document.getElementById('seg-kr-plus').classList.toggle('active',s===1);
+  document.getElementById('seg-kr-minus').classList.toggle('active',s===-1);
+}
+function setUsdSign(s){
+  usdSign=s;
+  document.getElementById('seg-us-plus').classList.toggle('active',s===1);
+  document.getElementById('seg-us-minus').classList.toggle('active',s===-1);
+}
+function updateTickerAutocomplete(){
+  const krwList=document.getElementById('krwTickerList');
+  const usdList=document.getElementById('usdTickerList');
+  const krwT=new Set(), usdT=new Set();
+  (state.invest.brokers||[]).forEach(b=>{
+    (b.records||[]).forEach(r=>{
+      if(r.type==='krw'&&r.ticker) krwT.add(r.ticker);
+      if(r.type==='usd_profit'&&r.ticker) usdT.add(r.ticker);
+    });
+  });
+  if(krwList) krwList.innerHTML=[...krwT].map(t=>`<option value="${t}">`).join('');
+  if(usdList) usdList.innerHTML=[...usdT].map(t=>`<option value="${t}">`).join('');
+}
+
+// 예수금
+function openDepositModal(){
+  const b=getBroker(currentBrokerId);
+  document.getElementById('depositAmtInput').value=b&&b.deposit?fmtNum(b.deposit):'';
+  document.getElementById('depositModal').classList.add('show');
+}
+function closeDepositModal(){ document.getElementById('depositModal').classList.remove('show'); }
+document.getElementById('depositModal').addEventListener('click',e=>{ if(e.target.id==='depositModal') closeDepositModal(); });
+document.getElementById('depositAmtInput').addEventListener('input',e=>{
+  const raw=e.target.value.replace(/[^0-9]/g,'');
+  e.target.value=raw?Number(raw).toLocaleString('ko-KR'):'';
+});
+function saveDeposit(){
+  const b=getBroker(currentBrokerId);
+  if(!b) return;
+  b.deposit=Number(document.getElementById('depositAmtInput').value.replace(/,/g,''))||0;
+  save(); closeDepositModal(); renderInvestDetail();
+  toast('저장됐어요');
+}
 
 function getBroker(id){ return (state.invest.brokers||[]).find(b=>b.id===id); }
 
@@ -2415,6 +2528,7 @@ function openBrokerDetail(id){
   document.getElementById('invest-main').style.display = 'none';
   document.getElementById('invest-detail').style.display = 'block';
   document.getElementById('detailBrokerName').textContent = b.name;
+  setInvestMarket('kr');
   renderInvestDetail();
 }
 function closeInvestDetail(){
@@ -2429,20 +2543,24 @@ function renderInvestDetail(){
   if(!b) return;
   const records = b.records||[];
 
-  // 원화
+  // 예수금
+  const depEl = document.getElementById('depositAmt');
+  if(depEl) depEl.textContent = fmt(b.deposit||0);
+
+  // 원화 손익
   const krwRecords = records.filter(r=>r.type==='krw').sort((a,z)=>z.date.localeCompare(a.date));
-  const krwSeed = records.filter(r=>r.type==='krw'&&r.subtype==='seed').reduce((s,r)=>s+r.krwAmt,0);
-  const krwProfit = records.filter(r=>r.type==='krw'&&(r.subtype==='profit'||r.subtype==='dividend')).reduce((s,r)=>s+r.krwAmt,0);
-  document.getElementById('krwTotal').textContent = fmt(krwSeed+krwProfit);
-  const subtypeLabel = {seed:'씨드', profit:'실현손익', dividend:'배당금'};
+  const krwTotal = krwRecords.reduce((s,r)=>s+r.krwAmt,0);
+  const krwEl = document.getElementById('krwTotal');
+  krwEl.textContent = (krwTotal>=0?'+':'')+fmt(krwTotal);
+  krwEl.style.color = krwTotal>0?'var(--red)':krwTotal<0?'var(--blue)':'var(--ink)';
+  const subtypeLabel = {profit:'실현손익', dividend:'배당금'};
   document.getElementById('krwRows').innerHTML = krwRecords.length===0
-    ? `<div style="color:var(--sub);font-size:13px;padding:8px 0;">내역이 없어요</div>`
+    ? `<div style="color:var(--sub);font-size:13px;padding:4px 0;">내역이 없어요</div>`
     : krwRecords.map(r=>{
-        const sign = r.subtype==='seed'?'+': r.krwAmt>=0?'+':'-';
-        const col = r.subtype==='seed'?'var(--ink)':r.krwAmt>=0?'var(--red)':'var(--blue)';
+        const col = r.krwAmt>=0?'var(--red)':'var(--blue)';
         return `<div class="invest-row" onclick="openInvestRecordModal('krw','${r.id}')">
           <div class="il"><div class="main">${subtypeLabel[r.subtype]||r.subtype}${r.ticker?' · '+r.ticker:''}</div><div class="sub">${r.date}${r.memo?' · '+r.memo:''}</div></div>
-          <div class="ir"><div class="amt" style="color:${col}">${sign}${fmt(Math.abs(r.krwAmt))}</div></div>
+          <div class="ir"><div class="amt" style="color:${col}">${r.krwAmt>=0?'+':''}${fmt(r.krwAmt)}</div></div>
         </div>`;
       }).join('');
 
@@ -2450,32 +2568,41 @@ function renderInvestDetail(){
   const fxRecords = records.filter(r=>r.type==='fx').sort((a,z)=>z.date.localeCompare(a.date));
   const totalUsd = fxRecords.reduce((s,r)=>s+r.usdAmt,0);
   const totalKrwForFx = fxRecords.reduce((s,r)=>s+r.krwAmt,0);
-  const avgRate = totalUsd>0 ? totalKrwForFx/totalUsd : 0;
+  const avgRate = totalUsd>0?totalKrwForFx/totalUsd:0;
   document.getElementById('usdTotal').textContent = `$${totalUsd.toFixed(2)}`;
-  document.getElementById('usdAvgRate').textContent = avgRate>0 ? `평균환율 ₩${Math.round(avgRate).toLocaleString()}` : '평균환율 -';
+  document.getElementById('usdAvgRate').textContent = avgRate>0?`평균환율 ₩${Math.round(avgRate).toLocaleString()}`:'평균환율 -';
+  const usdKrwEl = document.getElementById('usdKrwTotal');
+  if(usdKrwEl) usdKrwEl.textContent = totalKrwForFx>0?`총 ${fmt(totalKrwForFx)} 사용`:'';
   document.getElementById('fxRows').innerHTML = fxRecords.length===0
-    ? `<div style="color:var(--sub);font-size:13px;padding:8px 0;">환전 내역이 없어요</div>`
+    ? `<div style="color:var(--sub);font-size:13px;padding:4px 0;">환전 내역이 없어요</div>`
     : fxRecords.map(r=>`<div class="invest-row" onclick="openInvestRecordModal('fx','${r.id}')">
         <div class="il"><div class="main">$${r.usdAmt.toFixed(2)} 환전</div><div class="sub">${r.date} · ₩${Math.round(r.krwAmt/r.usdAmt).toLocaleString()}/$ ${r.memo?' · '+r.memo:''}</div></div>
-        <div class="ir"><div class="amt">-${fmt(r.krwAmt)}</div><div class="sub">+$${r.usdAmt.toFixed(2)}</div></div>
+        <div class="ir"><div class="amt">-${fmt(r.krwAmt)}</div><div class="sub" style="color:var(--green)">+$${r.usdAmt.toFixed(2)}</div></div>
       </div>`).join('');
 
   // 달러 수익
   const uspRecords = records.filter(r=>r.type==='usd_profit').sort((a,z)=>z.date.localeCompare(a.date));
   const totalUsdP = uspRecords.reduce((s,r)=>s+r.usdAmt,0);
-  const pSign = totalUsdP>=0?'+':'';
-  document.getElementById('usdProfitTotal').textContent = `${pSign}$${totalUsdP.toFixed(2)}`;
-  document.getElementById('usdProfitTotal').style.color = totalUsdP>=0?'var(--red)':'var(--blue)';
+  const upEl = document.getElementById('usdProfitTotal');
+  upEl.textContent = `${totalUsdP>=0?'+':''}$${totalUsdP.toFixed(2)}`;
+  upEl.style.color = totalUsdP>0?'var(--red)':totalUsdP<0?'var(--blue)':'var(--ink)';
   document.getElementById('usdProfitRows').innerHTML = uspRecords.length===0
-    ? `<div style="color:var(--sub);font-size:13px;padding:8px 0;">수익 내역이 없어요</div>`
+    ? `<div style="color:var(--sub);font-size:13px;padding:4px 0;">수익 내역이 없어요</div>`
     : uspRecords.map(r=>{
-        const s = r.usdAmt>=0?'+':'-';
         const c = r.usdAmt>=0?'var(--red)':'var(--blue)';
         return `<div class="invest-row" onclick="openInvestRecordModal('usd_profit','${r.id}')">
           <div class="il"><div class="main">${r.subtype==='dividend'?'배당금':'실현손익'}${r.ticker?' · '+r.ticker:''}</div><div class="sub">${r.date}${r.memo?' · '+r.memo:''}</div></div>
-          <div class="ir"><div class="amt" style="color:${c}">${s}$${Math.abs(r.usdAmt).toFixed(2)}</div></div>
+          <div class="ir"><div class="amt" style="color:${c}">${r.usdAmt>=0?'+':''}$${Math.abs(r.usdAmt).toFixed(2)}</div></div>
         </div>`;
       }).join('');
+
+  // 섹션 접기 상태 반영
+  ['krw','usdp','fx'].forEach(key=>{
+    const body=document.getElementById(key+'-body');
+    const chev=document.getElementById(key+'-chevron');
+    if(body) body.style.display=invSectionState[key]?'block':'none';
+    if(chev) chev.textContent=invSectionState[key]?'▾':'▸';
+  });
 }
 
 // 증권사 모달
@@ -2521,10 +2648,9 @@ function deleteBroker(){
 // 투자 내역 모달
 function setKrwType(t){
   krwType = t;
-  ['seed','profit','dividend'].forEach(x=>{
+  ['profit','dividend'].forEach(x=>{
     document.getElementById('seg-ir-'+x).classList.toggle('active', x===t);
   });
-  document.getElementById('irKrwTickerField').style.display = (t==='seed')?'none':'block';
 }
 function setUsdProfitType(t){
   usdProfitType = t;
@@ -2552,10 +2678,9 @@ function openInvestRecordModal(type, editId){
   document.getElementById('irDeleteBtn').style.display = editId?'block':'none';
   document.getElementById('irDate').value = new Date().toISOString().slice(0,10);
   document.getElementById('irMemo').value = '';
-  // 제목
-  const titles = {krw:'원화 내역 추가', fx:'환전 내역 추가', usd_profit:'달러 수익 추가'};
-  document.getElementById('investRecordTitle').textContent = editId?(titles[type].replace('추가','수정')):titles[type];
-
+  const titles = {krw:'원화 내역', fx:'환전 내역', usd_profit:'달러 수익'};
+  document.getElementById('investRecordTitle').textContent = (editId?'수정':'추가')+' · '+titles[type];
+  updateTickerAutocomplete();
   if(editId){
     const b = getBroker(currentBrokerId);
     const r = (b.records||[]).find(x=>x.id===editId);
@@ -2563,7 +2688,8 @@ function openInvestRecordModal(type, editId){
       document.getElementById('irDate').value = r.date;
       document.getElementById('irMemo').value = r.memo||'';
       if(type==='krw'){
-        setKrwType(r.subtype);
+        setKrwType(r.subtype||'profit');
+        setKrwSign(r.krwAmt>=0?1:-1);
         document.getElementById('irKrwAmt').value = fmtNum(Math.abs(r.krwAmt));
         document.getElementById('irKrwTicker').value = r.ticker||'';
       } else if(type==='fx'){
@@ -2571,15 +2697,22 @@ function openInvestRecordModal(type, editId){
         document.getElementById('irFxUsd').value = r.usdAmt;
         calcFxRate();
       } else {
-        setUsdProfitType(r.subtype);
-        document.getElementById('irUsdAmt').value = r.usdAmt;
+        setUsdProfitType(r.subtype||'profit');
+        setUsdSign(r.usdAmt>=0?1:-1);
+        document.getElementById('irUsdAmt').value = Math.abs(r.usdAmt);
         document.getElementById('irUsdTicker').value = r.ticker||'';
       }
     }
   } else {
-    if(type==='krw'){ setKrwType('seed'); document.getElementById('irKrwAmt').value=''; document.getElementById('irKrwTicker').value=''; }
-    if(type==='fx'){ document.getElementById('irFxKrw').value=''; document.getElementById('irFxUsd').value=''; document.getElementById('irFxPreview').innerHTML=''; }
-    if(type==='usd_profit'){ setUsdProfitType('profit'); document.getElementById('irUsdAmt').value=''; document.getElementById('irUsdTicker').value=''; }
+    setKrwType('profit'); setKrwSign(1);
+    setUsdProfitType('profit'); setUsdSign(1);
+    document.getElementById('irKrwAmt').value='';
+    document.getElementById('irKrwTicker').value='';
+    document.getElementById('irFxKrw').value='';
+    document.getElementById('irFxUsd').value='';
+    document.getElementById('irFxPreview').innerHTML='';
+    document.getElementById('irUsdAmt').value='';
+    document.getElementById('irUsdTicker').value='';
   }
 }
 function closeInvestRecordModal(){ document.getElementById('investRecordModal').classList.remove('show'); }
@@ -2596,17 +2729,17 @@ function saveInvestRecord(){
     const amt = Number(document.getElementById('irKrwAmt').value.replace(/,/g,''));
     if(!amt){ toast('금액을 입력해주세요'); return; }
     const ticker = document.getElementById('irKrwTicker').value.trim();
-    record = {id: irEditingId||Date.now()+'', type:'krw', subtype:krwType, krwAmt: krwType==='seed'?amt:amt, date, memo, ticker};
+    record = {id:irEditingId||Date.now()+'', type:'krw', subtype:krwType, krwAmt:amt*krwSign, date, memo, ticker};
   } else if(irType==='fx'){
     const krw = Number(document.getElementById('irFxKrw').value.replace(/,/g,''));
     const usd = Number(document.getElementById('irFxUsd').value);
     if(!krw||!usd){ toast('원화와 달러를 입력해주세요'); return; }
-    record = {id: irEditingId||Date.now()+'', type:'fx', krwAmt:krw, usdAmt:usd, date, memo};
+    record = {id:irEditingId||Date.now()+'', type:'fx', krwAmt:krw, usdAmt:usd, date, memo};
   } else {
     const usd = Number(document.getElementById('irUsdAmt').value);
     if(!usd){ toast('금액을 입력해주세요'); return; }
     const ticker = document.getElementById('irUsdTicker').value.trim();
-    record = {id: irEditingId||Date.now()+'', type:'usd_profit', subtype:usdProfitType, usdAmt:usd, date, memo, ticker};
+    record = {id:irEditingId||Date.now()+'', type:'usd_profit', subtype:usdProfitType, usdAmt:usd*usdSign, date, memo, ticker};
   }
   if(irEditingId){
     const idx = b.records.findIndex(x=>x.id===irEditingId);
@@ -2671,9 +2804,47 @@ function calcBizDay(){
   document.getElementById('bizCalcResult').style.display='block';
 }
 
+function renderBizAvail(){
+  const card = document.getElementById('bizAvailCard');
+  if(!card) return;
+  const withDate = state.assets.filter(a=>a.openDate);
+  if(withDate.length===0){
+    card.innerHTML = `<div style="font-size:13px;color:var(--sub);">개설일이 등록된 자산이 없어요<br><span style="font-size:12px;">자산 수정에서 계좌 개설일을 입력하면 자동으로 표시돼요</span></div>`;
+    return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = ['일','월','화','수','목','금','토'];
+  card.innerHTML = withDate.map(a=>{
+    const res = calcBizDayFrom(new Date(a.openDate), 20);
+    const [,om,od] = a.openDate.split('-');
+    const [,rm,rd] = res.toISOString().slice(0,10).split('-');
+    const diff = Math.ceil((res-today)/(1000*60*60*24));
+    const resStr = `${Number(rm)}월 ${Number(rd)}일(${dow[res.getDay()]})`;
+    let statusColor, statusText;
+    if(diff <= 0){
+      statusColor = 'var(--green)';
+      statusText = `✅ 지금 바로 개설 가능`;
+    } else if(diff <= 7){
+      statusColor = '#FFB800';
+      statusText = `⏳ ${diff}일 후`;
+    } else {
+      statusColor = 'var(--sub)';
+      statusText = `${diff}일 후`;
+    }
+    return `<div class="asset-row" style="cursor:pointer;" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:700;">${a.name}</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-top:2px;">개설일 ${Number(om)}/${Number(od)} → 재개설 가능 <b>${resStr}</b></div>
+      </div>
+      <span style="font-size:12px;font-weight:700;color:${statusColor};white-space:nowrap;">${statusText}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderAssets(){
   const box = document.getElementById('assetsCard');
   if(!box) return;
+  renderBizAvail();
   if(state.assets.length===0){
     box.innerHTML = `<div class="empty"><span class="big">💳</span>등록된 자산이 없어요</div>`;
     return;
@@ -2769,7 +2940,7 @@ function openAssetDetail(id){
         const isOut = t.from===a.name;
         const col = isOut?'var(--blue)':'var(--red)';
         const sign = isOut?'-':'+';
-        const other = isOut?t.to:t.from;
+        const other = isOut?getBrokerLabel(t.to):getBrokerLabel(t.from);
         const dir = isOut?`→ ${other}`:`← ${other}`;
         return `<div class="asset-row" style="cursor:pointer;" onclick="openTransferModal('${t.id}')">
           <div style="flex:1;"><div style="font-size:13.5px;font-weight:600;">${dir}</div><div style="font-size:11.5px;color:var(--sub);margin-top:2px;">${t.date}${t.memo?' · '+t.memo:''}</div></div>
@@ -2926,10 +3097,13 @@ function deleteAsset(id){
 // ===== 이체 =====
 let transferEditingId = null;
 function populateTransferSelects(defaultFrom){
-  const opts=[...state.assets.map(a=>a.name),'기타(외부)'].map(n=>`<option value="${n}">${n}</option>`).join('');
-  document.getElementById('transferFrom').innerHTML=opts;
-  document.getElementById('transferTo').innerHTML=opts;
-  if(defaultFrom) document.getElementById('transferFrom').value=defaultFrom;
+  const assetOpts = state.assets.map(a=>`<option value="${a.name}">${a.name}</option>`).join('');
+  const brokerOpts = (state.invest.brokers||[]).map(b=>`<option value="__broker__${b.id}">📈 ${b.name} 예수금</option>`).join('');
+  const etcOpt = `<option value="기타(외부)">기타(외부)</option>`;
+  const opts = assetOpts + brokerOpts + etcOpt;
+  document.getElementById('transferFrom').innerHTML = opts;
+  document.getElementById('transferTo').innerHTML = opts;
+  if(defaultFrom) document.getElementById('transferFrom').value = defaultFrom;
 }
 function openTransferModal(id, defaultFrom){
   if(!state.transfers) state.transfers=[];
@@ -2967,6 +3141,18 @@ function saveTransfer(){
   if(!amount||!date){ toast('금액과 날짜를 입력해주세요'); return; }
   if(from===to){ toast('출금과 입금 계좌가 같아요'); return; }
   if(!state.transfers) state.transfers=[];
+
+  // 증권사 예수금 처리 (이전 내역 되돌리기)
+  if(transferEditingId){
+    const old=state.transfers.find(x=>x.id===transferEditingId);
+    if(old){
+      applyBrokerDeposit(old.from, old.amount); // 출금 취소 (되돌리기)
+      applyBrokerDeposit(old.to, -old.amount);  // 입금 취소
+    }
+  }
+  applyBrokerDeposit(from, -amount); // 출금
+  applyBrokerDeposit(to, amount);    // 입금
+
   const rec={id:transferEditingId||Date.now()+'', from, to, amount, date, memo};
   if(transferEditingId){
     const idx=state.transfers.findIndex(x=>x.id===transferEditingId);
@@ -2977,15 +3163,36 @@ function saveTransfer(){
   save(); closeTransferModal();
   renderAssets();
   if(currentAssetId) openAssetDetail(currentAssetId);
+  if(currentBrokerId) renderInvestDetail();
   toast('저장됐어요');
 }
+
+function applyBrokerDeposit(target, delta){
+  if(!target.startsWith('__broker__')) return;
+  const brokerId = target.replace('__broker__','');
+  const b = (state.invest.brokers||[]).find(x=>x.id===brokerId);
+  if(b) b.deposit = (b.deposit||0) + delta;
+}
+
+function getBrokerLabel(val){
+  if(!val.startsWith('__broker__')) return val;
+  const b=(state.invest.brokers||[]).find(x=>x.id===val.replace('__broker__',''));
+  return b?`📈 ${b.name} 예수금`:val;
+}
+
 function deleteTransfer(){
   if(!transferEditingId) return;
   if(confirm('이 이체 내역을 삭제할까요?')){
+    const old=state.transfers.find(x=>x.id===transferEditingId);
+    if(old){
+      applyBrokerDeposit(old.from, old.amount); // 출금 되돌리기
+      applyBrokerDeposit(old.to, -old.amount);  // 입금 되돌리기
+    }
     state.transfers=(state.transfers||[]).filter(t=>t.id!==transferEditingId);
     save(); closeTransferModal();
     renderAssets();
     if(currentAssetId) openAssetDetail(currentAssetId);
+    if(currentBrokerId) renderInvestDetail();
     toast('삭제됐어요');
   }
 }
