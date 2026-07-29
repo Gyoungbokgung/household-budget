@@ -514,6 +514,19 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       <div class="cat-card">
         <div class="title">카테고리별 지출</div>
         <div class="desc" id="catDesc">아직 지출 내역이 없어요</div>
+        <div id="catChartWrap" style="display:none; margin-top:12px;">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="position:relative; flex-shrink:0;">
+              <svg id="catPieSvg" viewBox="0 0 100 100" width="110" height="110"></svg>
+              <div id="catPieCenter" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:56px;">
+                <div id="catPieCenterLabel" style="font-size:9px;color:var(--sub);font-weight:600;line-height:1.2;"></div>
+                <div id="catPieCenterAmt" style="font-size:11px;font-weight:800;line-height:1.3;"></div>
+                <div id="catPieCenterPct" style="font-size:9px;color:var(--sub);"></div>
+              </div>
+            </div>
+            <div id="catLegend" style="flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden;"></div>
+          </div>
+        </div>
         <div id="catRows"></div>
       </div>
 
@@ -1045,6 +1058,16 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     <div class="field" style="margin-bottom:8px;">
       <label>계좌 개설일 (선택)</label>
       <input type="date" id="assetOpenDate">
+    </div>
+    <div class="toggle-row" style="margin-bottom:8px;">
+      <div class="txt">
+        <div class="t">총 자산 합계에서 제외</div>
+        <div class="d">목록엔 보이지만 총 자산 계산에 포함하지 않아요</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="assetExcludeToggle">
+        <span class="slider"></span>
+      </label>
     </div>
     <div class="btn-row">
       <button class="delete" id="assetDeleteBtn" style="display:none;" onclick="deleteAssetFromModal()">삭제</button>
@@ -1618,30 +1641,73 @@ function onSortChange(val){
 
 function renderCatRows(expenses, total){
   const desc = document.getElementById('catDesc');
+  const wrap = document.getElementById('catChartWrap');
   const rows = document.getElementById('catRows');
+  rows.innerHTML = '';
   if(total===0){
     desc.textContent = '아직 지출 내역이 없어요';
-    rows.innerHTML = '';
+    if(wrap) wrap.style.display = 'none';
     return;
   }
   const sums = {};
   expenses.forEach(e=>{ sums[e.category] = (sums[e.category]||0) + e.amount; });
   const entries = Object.entries(sums).sort((a,b)=>b[1]-a[1]);
   desc.textContent = `가장 많이 쓴 곳은 ${entries[0][0]} 예요`;
-  rows.innerHTML = entries.map((e,i)=>{
+  if(wrap) wrap.style.display = 'block';
+
+  // 도넛 SVG
+  const svg = document.getElementById('catPieSvg');
+  svg.innerHTML = '';
+  const cx=50, cy=50, r=46, ri=26;
+  let angle = -Math.PI/2;
+  entries.forEach((e,i)=>{
+    const pct = e[1]/total;
+    const end = angle + pct*2*Math.PI;
+    const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(end),   y2=cy+r*Math.sin(end);
+    const ix1=cx+ri*Math.cos(angle), iy1=cy+ri*Math.sin(angle);
+    const ix2=cx+ri*Math.cos(end),   iy2=cy+ri*Math.sin(end);
+    const lg = pct>0.5?1:0;
+    const color = DOT_COLORS[i%DOT_COLORS.length];
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M${ix1},${iy1}L${x1},${y1}A${r},${r} 0 ${lg},1 ${x2},${y2}L${ix2},${iy2}A${ri},${ri} 0 ${lg},0 ${ix1},${iy1}Z`);
+    path.setAttribute('fill', color);
+    path.setAttribute('stroke', 'var(--card)');
+    path.setAttribute('stroke-width', '1.5');
+    path.style.cursor = 'pointer';
+    const name=e[0], amt=e[1], pp=Math.round(pct*100);
+    path.addEventListener('mouseenter', ()=>setPieCenter(name,amt,pp));
+    path.addEventListener('mouseleave', ()=>setPieCenter(entries[0][0],entries[0][1],Math.round(entries[0][1]/total*100)));
+    path.addEventListener('click', ()=>goToCategory(name));
+    svg.appendChild(path);
+    angle = end;
+  });
+  setPieCenter(entries[0][0], entries[0][1], Math.round(entries[0][1]/total*100));
+
+  // 범례
+  const leg = document.getElementById('catLegend');
+  leg.innerHTML = entries.map((e,i)=>{
     const pct = Math.round(e[1]/total*100);
-    return `<div class="cat-row" style="cursor:pointer;" onclick="goToCategory('${e[0]}')">
-      <div class="top">
-        <div class="left">
-          <div class="icon">${ICON_MAP[e[0]]||'📦'}</div>
-          <div class="name">${e[0]}</div>
-        </div>
-        <div class="amt">${fmt(e[1])}</div>
-      </div>
-      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%; background:${DOT_COLORS[i%DOT_COLORS.length]}"></div></div>
-      <div class="pct">전체의 ${pct}%</div>
+    const color = DOT_COLORS[i%DOT_COLORS.length];
+    return `<div style="display:flex;align-items:center;gap:6px;cursor:pointer;"
+      onclick="goToCategory('${e[0]}')"
+      onmouseenter="setPieCenter('${e[0]}',${e[1]},${pct})"
+      onmouseleave="setPieCenter('${entries[0][0]}',${entries[0][1]},${Math.round(entries[0][1]/total*100)})">
+      <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+      <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ICON_MAP[e[0]]||''} ${e[0]}</span>
+      <span style="font-size:11.5px;font-weight:800;white-space:nowrap;">${fmtShort(e[1])}</span>
+      <span style="font-size:10px;color:var(--sub);white-space:nowrap;">${pct}%</span>
     </div>`;
   }).join('');
+}
+
+function setPieCenter(label, amt, pct){
+  const l=document.getElementById('catPieCenterLabel');
+  const a=document.getElementById('catPieCenterAmt');
+  const p=document.getElementById('catPieCenterPct');
+  if(l) l.textContent=label;
+  if(a) a.textContent=fmtShort(amt);
+  if(p) p.textContent=pct+'%';
 }
 
 function renderTxList(elId, list, grouped, fullDate){
@@ -2880,18 +2946,20 @@ function renderAssets(){
     if(balance[t.from]!==undefined) balance[t.from]-=t.amount;
     if(balance[t.to]!==undefined) balance[t.to]+=t.amount;
   });
-  const total = state.assets.reduce((s,a)=>s+calcAssetBalance(a),0);
+  const total = state.assets.filter(a=>!a.excluded).reduce((s,a)=>s+calcAssetBalance(a),0);
   let html = `<div class="asset-total"><span class="lab">💰 총 자산</span><span class="val">${fmt(total)}</span></div>`;
   html += `<div class="cat-card" style="padding:6px 18px;">`;
   html += state.assets.map((a,i)=>{
     const bal = calcAssetBalance(a);
     const sub = [a.accountNo, a.rate?a.rate+'%':null].filter(Boolean).join(' · ');
+    const excludedStyle = a.excluded ? 'opacity:0.45;' : '';
+    const excludedTag = a.excluded ? `<span style="font-size:10px;color:var(--sub);background:var(--bg);border-radius:4px;padding:1px 5px;margin-left:4px;">제외</span>` : '';
     return `<div class="asset-row" draggable="true"
       ondragstart="assetDragStart(event,${i})" ondragover="assetDragOver(event,${i})"
-      ondrop="assetDrop(event,${i})" ondragend="assetDragEnd(event)">
+      ondrop="assetDrop(event,${i})" ondragend="assetDragEnd(event)" style="${excludedStyle}">
       <span class="drag-handle">⠿</span>
       <div style="flex:1;min-width:0;cursor:pointer;" onclick="openAssetDetail(${a.id})">
-        <div class="name">${a.name}</div>
+        <div class="name">${a.name}${excludedTag}</div>
         ${sub?`<div style="font-size:11.5px;color:var(--sub);margin-top:1px;">${sub}</div>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -3068,6 +3136,7 @@ function openAssetModal(a){
     document.getElementById('assetAmt').value = a.amount?fmtNum(a.amount):'';
     if(document.getElementById('assetRate')) document.getElementById('assetRate').value = a.rate||'';
     if(document.getElementById('assetOpenDate')) document.getElementById('assetOpenDate').value = a.openDate||'';
+    if(document.getElementById('assetExcludeToggle')) document.getElementById('assetExcludeToggle').checked = !!a.excluded;
   } else {
     assetEditingId = null;
     document.getElementById('assetSheetTitle').textContent = '자산 추가';
@@ -3077,6 +3146,7 @@ function openAssetModal(a){
     document.getElementById('assetAmt').value = '';
     if(document.getElementById('assetRate')) document.getElementById('assetRate').value = '';
     if(document.getElementById('assetOpenDate')) document.getElementById('assetOpenDate').value = '';
+    if(document.getElementById('assetExcludeToggle')) document.getElementById('assetExcludeToggle').checked = false;
   }
 }
 function closeAssetModal(){ document.getElementById('assetModal').classList.remove('show'); }
@@ -3092,12 +3162,13 @@ function saveAsset(){
   const amount=Number(document.getElementById('assetAmt').value.replace(/,/g,''))||0;
   const rate=document.getElementById('assetRate')?document.getElementById('assetRate').value.trim()||null:null;
   const openDate=document.getElementById('assetOpenDate')?document.getElementById('assetOpenDate').value||null:null;
+  const excluded=document.getElementById('assetExcludeToggle')?document.getElementById('assetExcludeToggle').checked:false;
   if(!name){ toast('이름을 입력해주세요'); return; }
   if(assetEditingId){
     const a=state.assets.find(x=>x.id===assetEditingId);
-    if(a){ a.name=name; a.accountNo=accountNo; a.amount=amount; a.rate=rate; a.openDate=openDate; }
+    if(a){ a.name=name; a.accountNo=accountNo; a.amount=amount; a.rate=rate; a.openDate=openDate; a.excluded=excluded; }
   } else {
-    state.assets.push({id:Date.now(), name, accountNo, amount, rate, openDate});
+    state.assets.push({id:Date.now(), name, accountNo, amount, rate, openDate, excluded});
   }
   save(); closeAssetModal(); render();
   if(currentAssetId) openAssetDetail(currentAssetId);
