@@ -2807,38 +2807,39 @@ function calcBizDay(){
 function renderBizAvail(){
   const card = document.getElementById('bizAvailCard');
   if(!card) return;
-  const withDate = state.assets.filter(a=>a.openDate);
+  const withDate = state.assets.filter(a=>a.openDate).sort((a,b)=>b.openDate.localeCompare(a.openDate));
   if(withDate.length===0){
     card.innerHTML = `<div style="font-size:13px;color:var(--sub);">개설일이 등록된 자산이 없어요<br><span style="font-size:12px;">자산 수정에서 계좌 개설일을 입력하면 자동으로 표시돼요</span></div>`;
     return;
   }
+  const a = withDate[0]; // 가장 최근 개설일
   const today = new Date(); today.setHours(0,0,0,0);
   const dow = ['일','월','화','수','목','금','토'];
-  card.innerHTML = withDate.map(a=>{
-    const res = calcBizDayFrom(new Date(a.openDate), 20);
-    const [,om,od] = a.openDate.split('-');
-    const [,rm,rd] = res.toISOString().slice(0,10).split('-');
-    const diff = Math.ceil((res-today)/(1000*60*60*24));
-    const resStr = `${Number(rm)}월 ${Number(rd)}일(${dow[res.getDay()]})`;
-    let statusColor, statusText;
-    if(diff <= 0){
-      statusColor = 'var(--green)';
-      statusText = `✅ 지금 바로 개설 가능`;
-    } else if(diff <= 7){
-      statusColor = '#FFB800';
-      statusText = `⏳ ${diff}일 후`;
-    } else {
-      statusColor = 'var(--sub)';
-      statusText = `${diff}일 후`;
-    }
-    return `<div class="asset-row" style="cursor:pointer;" onclick='openAssetModal(${JSON.stringify(a).replace(/'/g,"&apos;")})'>
-      <div style="flex:1;">
-        <div style="font-size:13.5px;font-weight:700;">${a.name}</div>
-        <div style="font-size:11.5px;color:var(--sub);margin-top:2px;">개설일 ${Number(om)}/${Number(od)} → 재개설 가능 <b>${resStr}</b></div>
+  const res = calcBizDayFrom(new Date(a.openDate), 20);
+  const [,om,od] = a.openDate.split('-');
+  const [,rm,rd] = res.toISOString().slice(0,10).split('-');
+  const diff = Math.ceil((res-today)/(1000*60*60*24));
+  const resStr = `${Number(rm)}월 ${Number(rd)}일(${dow[res.getDay()]})`;
+  let statusColor, statusText;
+  if(diff <= 0){
+    statusColor = 'var(--green)';
+    statusText = `✅ 지금 바로 개설 가능`;
+  } else if(diff <= 7){
+    statusColor = '#FFB800';
+    statusText = `⏳ ${diff}일 후`;
+  } else {
+    statusColor = 'var(--sub)';
+    statusText = `${diff}일 후`;
+  }
+  card.innerHTML = `
+    <div style="font-size:12px;color:var(--sub);margin-bottom:8px;">${a.name} · 개설일 ${Number(om)}월 ${Number(od)}일 기준</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:13px;color:var(--sub);">재개설 가능일</div>
+        <div style="font-size:17px;font-weight:800;margin-top:2px;">${resStr}</div>
       </div>
-      <span style="font-size:12px;font-weight:700;color:${statusColor};white-space:nowrap;">${statusText}</span>
+      <span style="font-size:13px;font-weight:700;color:${statusColor};">${statusText}</span>
     </div>`;
-  }).join('');
 }
 
 function renderAssets(){
