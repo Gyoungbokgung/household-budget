@@ -548,7 +548,14 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
         <div class="chip-row" id="filterChips"></div>
         <div class="chip-total" id="chipTotal"></div>
         <div class="section-title with-sort">
-          <span id="fullListTitle">이번 달 전체 내역</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="fullListTitle">이번 달 전체 내역</span>
+            <div class="seg" style="margin:0;">
+              <button id="seg-method-all" class="active neutral" style="padding:5px 10px;font-size:11px;line-height:1;white-space:nowrap;" onclick="setMethodFilter('all')">전체</button>
+              <button id="seg-method-card" class="neutral" style="padding:5px 10px;font-size:11px;line-height:1;" onclick="setMethodFilter('카드')">💳</button>
+              <button id="seg-method-cash" class="neutral" style="padding:5px 10px;font-size:11px;line-height:1;" onclick="setMethodFilter('현금')">💵</button>
+            </div>
+          </div>
           <select class="sort-select" id="sortSelect" onchange="onSortChange(this.value)">
             <option value="latest">최신순</option>
             <option value="oldest">오래된순</option>
@@ -1265,6 +1272,16 @@ let catMgmtType = 'expense';
 let categoryEditingKey = null;
 let searchQuery = '';
 let sortOrder = 'latest';
+let methodFilter = 'all'; // all | 카드 | 현금
+
+function setMethodFilter(m){
+  methodFilter = m;
+  ['all','card','cash'].forEach(x=>{
+    document.getElementById('seg-method-'+x).classList.toggle('active', x===({'all':'all','카드':'card','현금':'cash'}[m]||m));
+  });
+  render();
+}
+function onSortChange(val){ sortOrder=val; render(); }
 
 // ===== Supabase 설정 =====
 const SUPABASE_URL = 'https://fyoogqiohnbnykwcrkxt.supabase.co';
@@ -1589,6 +1606,7 @@ function render(){
     document.getElementById('fullListTitle').textContent = `검색 결과`;
     const q = searchQuery.toLowerCase();
     let full = state.transactions.filter(t=>(t.memo||'').toLowerCase().includes(q));
+    if(methodFilter!=='all') full = full.filter(t=>t.type==='income'||(t.method||'카드')===methodFilter);
     full = sortTxList(full);
     renderTxList('fullList', full, grouped, grouped);
   } else {
@@ -1596,6 +1614,7 @@ function render(){
     renderChips(tx);
     let full = [...tx];
     if(categoryFilter) full = full.filter(t=>t.category===categoryFilter);
+    if(methodFilter!=='all') full = full.filter(t=>t.type==='income'||(t.method||'카드')===methodFilter);
     full = sortTxList(full);
     renderTxList('fullList', full, grouped, false);
   }
@@ -1633,10 +1652,6 @@ function sortTxList(list){
       arr.sort((a,b)=> (b.date+b.id).localeCompare(a.date+a.id));
   }
   return arr;
-}
-function onSortChange(val){
-  sortOrder = val;
-  render();
 }
 
 function renderCatRows(expenses, total){
