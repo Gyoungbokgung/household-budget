@@ -805,8 +805,8 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     <div class="field" id="methodField">
       <label>결제 수단</label>
       <div class="seg">
-        <button id="seg-method-card" class="active neutral" onclick="setMethod('카드')">카드</button>
-        <button id="seg-method-cash" class="neutral" onclick="setMethod('현금')">현금</button>
+        <button id="seg-pay-card" class="active neutral" onclick="setMethod('카드')">카드</button>
+        <button id="seg-pay-cash" class="neutral" onclick="setMethod('현금')">현금</button>
       </div>
     </div>
     <div class="field" style="margin-bottom:8px;">
@@ -1276,9 +1276,9 @@ let methodFilter = 'all'; // all | 카드 | 현금
 
 function setMethodFilter(m){
   methodFilter = m;
-  ['all','card','cash'].forEach(x=>{
-    document.getElementById('seg-method-'+x).classList.toggle('active', x===({'all':'all','카드':'card','현금':'cash'}[m]||m));
-  });
+  document.getElementById('seg-method-all').classList.toggle('active', m==='all');
+  document.getElementById('seg-method-card').classList.toggle('active', m==='카드');
+  document.getElementById('seg-method-cash').classList.toggle('active', m==='현금');
   render();
 }
 function onSortChange(val){ sortOrder=val; render(); }
@@ -1479,8 +1479,8 @@ function setType(t, presetCat){
 }
 function setMethod(m){
   curMethod = m;
-  document.getElementById('seg-method-card').classList.toggle('active', m==='카드');
-  document.getElementById('seg-method-cash').classList.toggle('active', m==='현금');
+  document.getElementById('seg-pay-card').classList.toggle('active', m==='카드');
+  document.getElementById('seg-pay-cash').classList.toggle('active', m==='현금');
 }
 function renderCatGrid(presetCat){
   const grid = document.getElementById('catGrid');
