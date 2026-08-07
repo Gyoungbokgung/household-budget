@@ -1252,6 +1252,24 @@ if(!state.savings) state.savings = [];
 if(!state.invest) state.invest = { brokers: [] };
 if(!state.transfers) state.transfers = [];
 if(!state.assetAdjs) state.assetAdjs = {};
+
+// 기존 증권사 중 예수금 자산이 없는 것들 자동 생성
+(state.invest.brokers||[]).forEach(b=>{
+  const assetName = `${b.name} 예수금`;
+  const exists = state.assets.find(a=>a.name===assetName);
+  if(!exists){
+    state.assets.push({
+      id: Date.now() + Math.random(),
+      name: assetName,
+      accountNo: '',
+      amount: b.deposit||0,
+      rate: null,
+      openDate: null,
+      excluded: false,
+      isBrokerDeposit: b.id
+    });
+  }
+});
 if(!state.categories){
   state.categories = JSON.parse(JSON.stringify(DEFAULT_CATS));
 }
