@@ -638,7 +638,7 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
               <div style="font-size:12px;color:var(--sub);margin-bottom:4px;">💵 예수금</div>
               <div style="font-size:20px;font-weight:800;" id="depositAmt">0원</div>
             </div>
-            <span style="font-size:12px;color:var(--sub);cursor:pointer;padding:6px 10px;background:var(--bg);border-radius:8px;" onclick="openDepositModal()">수정</span>
+            <span style="font-size:12px;color:var(--sub);cursor:pointer;padding:6px 10px;background:var(--bg);border-radius:8px;" onclick="openBrokerDepositAsset()">자산에서 관리 →</span>
           </div>
         </div>
         <!-- 국내/미국 탭 -->
@@ -2567,10 +2567,21 @@ function updateTickerAutocomplete(){
 }
 
 // 예수금
+function openBrokerDepositAsset(){
+  const b = getBroker(currentBrokerId);
+  if(!b) return;
+  const assetName = getBrokerAssetName(b.name);
+  const asset = state.assets.find(a=>a.name===assetName);
+  if(asset){
+    switchTab('assets');
+    openAssetDetail(asset.id);
+  } else {
+    toast('자산 탭에서 예수금을 찾을 수 없어요');
+  }
+}
+
 function openDepositModal(){
-  const b=getBroker(currentBrokerId);
-  document.getElementById('depositAmtInput').value=b&&b.deposit?fmtNum(b.deposit):'';
-  document.getElementById('depositModal').classList.add('show');
+  openBrokerDepositAsset();
 }
 function closeDepositModal(){ document.getElementById('depositModal').classList.remove('show'); }
 document.getElementById('depositModal').addEventListener('click',e=>{ if(e.target.id==='depositModal') closeDepositModal(); });
@@ -2646,9 +2657,14 @@ function renderInvestDetail(){
   if(!b) return;
   const records = b.records||[];
 
-  // 예수금
+  // 예수금 - 자산 탭의 연결된 자산에서 읽기
   const depEl = document.getElementById('depositAmt');
-  if(depEl) depEl.textContent = fmt(b.deposit||0);
+  if(depEl){
+    const assetName = getBrokerAssetName(b.name);
+    const linkedAsset = state.assets.find(a=>a.name===assetName);
+    const depBal = linkedAsset ? calcAssetBalance(linkedAsset) : (b.deposit||0);
+    depEl.textContent = fmt(depBal);
+  }
 
   // 원화 손익
   const krwRecords = records.filter(r=>r.type==='krw').sort((a,z)=>z.date.localeCompare(a.date));
@@ -2726,24 +2742,56 @@ function openBrokerModal(id){
 }
 function closeBrokerModal(){ document.getElementById('brokerModal').classList.remove('show'); }
 document.getElementById('brokerModal').addEventListener('click', e=>{ if(e.target.id==='brokerModal') closeBrokerModal(); });
+function getBrokerAssetName(brokerName){ return `${brokerName} 예수금`; }
+
 function saveBroker(){
   const name = document.getElementById('brokerName').value.trim();
   if(!name){ toast('이름을 입력해주세요'); return; }
   if(!state.invest) state.invest={brokers:[]};
   if(brokerEditingId){
     const b = getBroker(brokerEditingId);
-    if(b) b.name = name;
+    if(b){
+      const oldAssetName = getBrokerAssetName(b.name);
+      const newAssetName = getBrokerAssetName(name);
+      // 자산 이름 변경
+      const asset = state.assets.find(a=>a.name===oldAssetName);
+      if(asset) asset.name = newAssetName;
+      // 이체 내역 이름도 변경
+      (state.transfers||[]).forEach(t=>{
+        if(t.from===oldAssetName) t.from=newAssetName;
+        if(t.to===oldAssetName) t.to=newAssetName;
+      });
+      b.name = name;
+    }
   } else {
-    state.invest.brokers.push({id:Date.now()+'', name, records:[]});
+    const brokerId = Date.now()+'';
+    state.invest.brokers.push({id:brokerId, name, records:[]});
+    // 자산에 예수금 자동 생성
+    state.assets.push({
+      id: Date.now()+1,
+      name: getBrokerAssetName(name),
+      accountNo: '',
+      amount: 0,
+      rate: null,
+      openDate: null,
+      excluded: false,
+      isBrokerDeposit: brokerId
+    });
   }
-  save(); closeBrokerModal(); renderBrokers();
+  save(); closeBrokerModal(); renderBrokers(); renderAssets();
   toast('저장됐어요');
 }
 function deleteBroker(){
   if(!brokerEditingId) return;
   if(confirm('이 증권사와 모든 내역을 삭제할까요?')){
+    const b = getBroker(brokerEditingId);
+    if(b){
+      // 연결된 자산도 삭제
+      const assetName = getBrokerAssetName(b.name);
+      state.assets = state.assets.filter(a=>a.name!==assetName);
+    }
     state.invest.brokers = state.invest.brokers.filter(b=>b.id!==brokerEditingId);
-    save(); closeBrokerModal(); renderBrokers();
+    save(); closeBrokerModal(); renderBrokers(); renderAssets();
     toast('삭제됐어요');
   }
 }
@@ -3206,10 +3254,7 @@ function deleteAsset(id){
 // ===== 이체 =====
 let transferEditingId = null;
 function populateTransferSelects(defaultFrom){
-  const assetOpts = state.assets.map(a=>`<option value="${a.name}">${a.name}</option>`).join('');
-  const brokerOpts = (state.invest.brokers||[]).map(b=>`<option value="__broker__${b.id}">📈 ${b.name} 예수금</option>`).join('');
-  const etcOpt = `<option value="기타(외부)">기타(외부)</option>`;
-  const opts = assetOpts + brokerOpts + etcOpt;
+  const opts = [...state.assets.map(a=>a.name), '기타(외부)'].map(n=>`<option value="${n}">${n}</option>`).join('');
   document.getElementById('transferFrom').innerHTML = opts;
   document.getElementById('transferTo').innerHTML = opts;
   if(defaultFrom) document.getElementById('transferFrom').value = defaultFrom;
@@ -3251,17 +3296,6 @@ function saveTransfer(){
   if(from===to){ toast('출금과 입금 계좌가 같아요'); return; }
   if(!state.transfers) state.transfers=[];
 
-  // 증권사 예수금 처리 (이전 내역 되돌리기)
-  if(transferEditingId){
-    const old=state.transfers.find(x=>x.id===transferEditingId);
-    if(old){
-      applyBrokerDeposit(old.from, old.amount); // 출금 취소 (되돌리기)
-      applyBrokerDeposit(old.to, -old.amount);  // 입금 취소
-    }
-  }
-  applyBrokerDeposit(from, -amount); // 출금
-  applyBrokerDeposit(to, amount);    // 입금
-
   const rec={id:transferEditingId||Date.now()+'', from, to, amount, date, memo};
   if(transferEditingId){
     const idx=state.transfers.findIndex(x=>x.id===transferEditingId);
@@ -3277,26 +3311,15 @@ function saveTransfer(){
 }
 
 function applyBrokerDeposit(target, delta){
-  if(!target.startsWith('__broker__')) return;
-  const brokerId = target.replace('__broker__','');
-  const b = (state.invest.brokers||[]).find(x=>x.id===brokerId);
-  if(b) b.deposit = (b.deposit||0) + delta;
+  // 이제 증권사 예수금은 자산으로 관리되므로 별도 처리 불필요
+  // 이체 내역의 from/to 이름이 자산 이름과 일치하면 calcAssetBalance에서 자동 반영
 }
 
-function getBrokerLabel(val){
-  if(!val.startsWith('__broker__')) return val;
-  const b=(state.invest.brokers||[]).find(x=>x.id===val.replace('__broker__',''));
-  return b?`📈 ${b.name} 예수금`:val;
-}
+function getBrokerLabel(val){ return val; }
 
 function deleteTransfer(){
   if(!transferEditingId) return;
   if(confirm('이 이체 내역을 삭제할까요?')){
-    const old=state.transfers.find(x=>x.id===transferEditingId);
-    if(old){
-      applyBrokerDeposit(old.from, old.amount); // 출금 되돌리기
-      applyBrokerDeposit(old.to, -old.amount);  // 입금 되돌리기
-    }
     state.transfers=(state.transfers||[]).filter(t=>t.id!==transferEditingId);
     save(); closeTransferModal();
     renderAssets();
