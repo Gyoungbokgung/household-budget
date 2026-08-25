@@ -623,14 +623,18 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       </div>
       <div class="section-title">월별 요약</div>
       <div class="cat-card" style="padding:0;overflow:hidden;">
-        <table id="yearTable" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <table id="yearTable" style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">
+          <colgroup>
+            <col style="width:44px;">
+            <col><col><col><col>
+          </colgroup>
           <thead>
-            <tr style="background:var(--bg);border-bottom:1px solid var(--line);">
-              <th style="padding:10px 12px;text-align:left;color:var(--sub);font-weight:600;width:36px;"></th>
-              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">수입</th>
-              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">지출</th>
-              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">저축</th>
-              <th style="padding:10px 12px;text-align:right;color:var(--sub);font-weight:600;">남은돈</th>
+            <tr style="background:var(--bg);border-bottom:1.5px solid var(--line);">
+              <th style="padding:10px 0;text-align:center;color:var(--sub);font-weight:600;"></th>
+              <th style="padding:10px 0;text-align:center;color:var(--sub);font-weight:600;border-left:1px solid var(--line);">수입</th>
+              <th style="padding:10px 0;text-align:center;color:var(--sub);font-weight:600;border-left:1px solid var(--line);">지출</th>
+              <th style="padding:10px 0;text-align:center;color:var(--sub);font-weight:600;border-left:1px solid var(--line);">저축</th>
+              <th style="padding:10px 0;text-align:center;color:var(--sub);font-weight:600;border-left:1px solid var(--line);">남은돈</th>
             </tr>
           </thead>
           <tbody id="yearMonths"></tbody>
@@ -2158,16 +2162,17 @@ function renderYear(){
     const rowBg = isCurrent ? 'background:var(--blue-bg);' : '';
     const moStyle = isCurrent ? 'font-weight:600;color:var(--blue);' : (isFuture ? dim : 'font-weight:600;');
 
+    const borderL = 'border-left:1px solid var(--line);';
     const cell = (val, color='') => isFuture
-      ? `<td style="padding:11px 8px;text-align:right;color:var(--sub);font-size:11px;">-</td>`
-      : `<td style="padding:11px 8px;text-align:right;${color}">${val>0?fmtShort(val):'-'}</td>`;
+      ? `<td style="padding:10px 0;text-align:center;color:var(--sub);font-size:11px;${borderL}">-</td>`
+      : `<td style="padding:10px 0;text-align:center;${color}${borderL}">${val>0?fmtShort(val):'-'}</td>`;
 
-    rows += `<tr style="border-bottom:0.5px solid var(--line);cursor:pointer;${rowBg}" onclick="gotoMonth('${key}')">
-      <td style="padding:11px 12px;${moStyle}">${mo}월</td>
+    rows += `<tr style="border-bottom:1px solid var(--line);cursor:pointer;${rowBg}" onclick="gotoMonth('${key}')">
+      <td style="padding:10px 0;text-align:center;white-space:nowrap;${moStyle}">${mo}월</td>
       ${cell(inc, 'color:var(--green);')}
       ${cell(expenseTotal, 'color:var(--red);')}
       ${cell(savings, 'color:var(--blue);')}
-      <td style="padding:11px 12px;text-align:right;font-weight:600;${isFuture?dim:`color:${netColor};`}">${isFuture?'-':hasData?fmtShort(net):'-'}</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;white-space:nowrap;${borderL}${isFuture?dim:`color:${netColor};`}">${isFuture?'-':hasData?fmtShort(net):'-'}</td>
     </tr>`;
   }
 
@@ -2177,11 +2182,11 @@ function renderYear(){
   const yearNet = yearIncome - yearSavings - yearExpense;
   document.getElementById('yearTfoot').innerHTML = `
     <tr>
-      <td style="padding:11px 12px;font-weight:600;font-size:12px;color:var(--sub);">합계</td>
-      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--green);">${fmtShort(yearIncome)}</td>
-      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--red);">${fmtShort(yearExpense)}</td>
-      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--blue);">${fmtShort(yearSavings)}</td>
-      <td style="padding:11px 12px;text-align:right;font-weight:600;color:${yearNet>=0?'var(--green)':'var(--red)'};">${fmtShort(yearNet)}</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;color:var(--sub);white-space:nowrap;">합계</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;color:var(--green);border-left:1px solid var(--line);">${fmtShort(yearIncome)}</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;color:var(--red);border-left:1px solid var(--line);">${fmtShort(yearExpense)}</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;color:var(--blue);border-left:1px solid var(--line);">${fmtShort(yearSavings)}</td>
+      <td style="padding:10px 0;text-align:center;font-weight:600;border-left:1px solid var(--line);color:${yearNet>=0?'var(--green)':'var(--red)'};">${fmtShort(yearNet)}</td>
     </tr>`;
 
   document.getElementById('yearIncomeText').textContent = fmt(yearIncome);
