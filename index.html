@@ -622,7 +622,21 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
         </div>
       </div>
       <div class="section-title">월별 요약</div>
-      <div class="cat-card" id="yearMonths"></div>
+      <div class="cat-card" style="padding:0;overflow:hidden;">
+        <table id="yearTable" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--line);">
+              <th style="padding:10px 12px;text-align:left;color:var(--sub);font-weight:600;width:36px;"></th>
+              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">수입</th>
+              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">지출</th>
+              <th style="padding:10px 8px;text-align:right;color:var(--sub);font-weight:600;">저축</th>
+              <th style="padding:10px 12px;text-align:right;color:var(--sub);font-weight:600;">남은돈</th>
+            </tr>
+          </thead>
+          <tbody id="yearMonths"></tbody>
+          <tfoot id="yearTfoot" style="border-top:1.5px solid var(--line);background:var(--bg);"></tfoot>
+        </table>
+      </div>
     </div>
 
     <div id="view-invest" style="display:none;">
@@ -2120,10 +2134,12 @@ function renderYear(){
   const todayKey = new Date().toISOString().slice(0,7);
 
   let yearIncome=0, yearExpense=0, yearFixed=0, yearSavings=0;
-  let html = '';
+  let rows = '';
+
   for(let mo=1; mo<=12; mo++){
     const key = `${year}-${String(mo).padStart(2,'0')}`;
     const isFuture = key > todayKey;
+    const isCurrent = key === todayKey;
     const tx = state.transactions.filter(t=>t.date.startsWith(key) && !t.excluded);
     const inc = tx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const exp = tx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -2131,28 +2147,47 @@ function renderYear(){
     const savings = isFuture ? 0 : getSavingsForMonth(key);
     const expenseTotal = fixed + exp;
     const net = inc - savings - expenseTotal;
+
     yearIncome += isFuture ? 0 : inc;
-    yearExpense += isFuture ? 0 : exp;
-    yearFixed += isFuture ? 0 : fixed;
+    yearExpense += isFuture ? 0 : expenseTotal;
     yearSavings += isFuture ? 0 : savings;
 
     const hasData = !isFuture && (inc>0 || exp>0 || fixed>0 || savings>0);
-    const netColor = net>=0 ? 'var(--ink)' : 'var(--red)';
-    const netLabel = isFuture ? '예정' : (hasData ? fmt(net) : '내역 없음');
-    const netStyle = isFuture ? 'color:var(--sub);' : `color:${netColor};`;
-    html += `<div class="month-row ${(hasData && !isFuture)?'':'empty-month'}" onclick="gotoMonth('${key}')">
-      <div class="top">
-        <div class="m">${mo}월</div>
-        <div class="net" style="${netStyle}">${netLabel}</div>
-      </div>
-      ${hasData ? `<div class="sub">수입 ${fmt(inc)} · 저축 ${fmt(savings)} · 지출 ${fmt(expenseTotal)}</div>` : ''}
-    </div>`;
+    const netColor = net>=0 ? 'var(--green)' : 'var(--red)';
+    const dim = 'color:var(--sub);';
+    const rowBg = isCurrent ? 'background:var(--blue-bg);' : '';
+    const moStyle = isCurrent ? 'font-weight:600;color:var(--blue);' : (isFuture ? dim : 'font-weight:600;');
+
+    const cell = (val, color='') => isFuture
+      ? `<td style="padding:11px 8px;text-align:right;color:var(--sub);font-size:11px;">-</td>`
+      : `<td style="padding:11px 8px;text-align:right;${color}">${val>0?fmtShort(val):'-'}</td>`;
+
+    rows += `<tr style="border-bottom:0.5px solid var(--line);cursor:pointer;${rowBg}" onclick="gotoMonth('${key}')">
+      <td style="padding:11px 12px;${moStyle}">${mo}월</td>
+      ${cell(inc, 'color:var(--green);')}
+      ${cell(expenseTotal, 'color:var(--red);')}
+      ${cell(savings, 'color:var(--blue);')}
+      <td style="padding:11px 12px;text-align:right;font-weight:600;${isFuture?dim:`color:${netColor};`}">${isFuture?'-':hasData?fmtShort(net):'-'}</td>
+    </tr>`;
   }
-  document.getElementById('yearMonths').innerHTML = html;
+
+  document.getElementById('yearMonths').innerHTML = rows;
+
+  // 합계 행
+  const yearNet = yearIncome - yearSavings - yearExpense;
+  document.getElementById('yearTfoot').innerHTML = `
+    <tr>
+      <td style="padding:11px 12px;font-weight:600;font-size:12px;color:var(--sub);">합계</td>
+      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--green);">${fmtShort(yearIncome)}</td>
+      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--red);">${fmtShort(yearExpense)}</td>
+      <td style="padding:11px 8px;text-align:right;font-weight:600;color:var(--blue);">${fmtShort(yearSavings)}</td>
+      <td style="padding:11px 12px;text-align:right;font-weight:600;color:${yearNet>=0?'var(--green)':'var(--red)'};">${fmtShort(yearNet)}</td>
+    </tr>`;
+
   document.getElementById('yearIncomeText').textContent = fmt(yearIncome);
   document.getElementById('yearSavingsText').textContent = fmt(yearSavings);
-  document.getElementById('yearExpenseText').textContent = fmt(yearExpense + yearFixed);
-  document.getElementById('yearBalanceText').textContent = fmt(yearIncome - yearSavings - (yearExpense + yearFixed));
+  document.getElementById('yearExpenseText').textContent = fmt(yearExpense);
+  document.getElementById('yearBalanceText').textContent = fmt(yearNet);
 }
 
 /* ===== 저축 · 예금 ===== */
