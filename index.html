@@ -511,10 +511,17 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
       </div>
 
       <div class="cat-card">
-        <div class="title">고정 지출</div>
-        <div class="desc" id="fixedDesc">이번 달 고정 지출이 없어요</div>
-        <div id="fixedRows"></div>
-        <button class="day-add-btn small" style="width:100%; margin-top:10px;" onclick="openFixedModal()"><span class="plus-circle">＋</span>고정 지출 추가하기</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleFixedSection()">
+          <div>
+            <div class="title" style="margin:0;">고정 지출</div>
+            <div class="desc" id="fixedDesc" style="margin:2px 0 0;">이번 달 고정 지출이 없어요</div>
+          </div>
+          <span id="fixedChevron" style="color:var(--sub);font-size:16px;padding:4px;">▾</span>
+        </div>
+        <div id="fixedBody">
+          <div id="fixedRows" style="margin-top:10px;"></div>
+          <button class="day-add-btn small" style="width:100%; margin-top:10px;" onclick="openFixedModal()"><span class="plus-circle">＋</span>고정 지출 추가하기</button>
+        </div>
         <button class="day-add-btn small gray" style="width:100%; margin-top:8px;" onclick="copyLastMonthFixed()"><span class="plus-circle">↺</span>지난달 고정지출 불러오기</button>
       </div>
 
@@ -774,6 +781,19 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
         </label>
       </div>
 
+      <div class="section-title">결제수단 관리</div>
+      <div class="cat-card" style="padding:12px 16px;">
+        <div id="payMethodList" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+          <select id="newPayMethodType" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg);color:var(--ink);">
+            <option value="카드">💳 카드</option>
+            <option value="현금">💵 현금</option>
+          </select>
+          <input type="text" id="newPayMethodInput" placeholder="예: 현대카드, 카카오페이" style="flex:1;padding:8px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg);color:var(--ink);">
+          <button class="day-add-btn small" style="margin:0;" onclick="addPayMethod()">추가</button>
+        </div>
+      </div>
+
       <div class="section-title">카테고리 관리</div>
       <div class="cat-card">
         <div class="seg" style="margin-bottom:14px;">
@@ -844,10 +864,11 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     </div>
     <div class="field" id="methodField">
       <label>결제 수단</label>
-      <div class="seg">
-        <button id="seg-pay-card" class="active neutral" onclick="setMethod('카드')">카드</button>
-        <button id="seg-pay-cash" class="neutral" onclick="setMethod('현금')">현금</button>
+      <div class="seg" style="margin-bottom:8px;">
+        <button id="seg-pay-card" class="active neutral" onclick="setMethodType('카드')">💳 카드</button>
+        <button id="seg-pay-cash" class="neutral" onclick="setMethodType('현금')">💵 현금</button>
       </div>
+      <select id="methodSelect" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;background:var(--bg);color:var(--ink);" onchange="curMethod=this.value"></select>
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>날짜</label>
@@ -1142,14 +1163,11 @@ input:focus{ outline:none; border-color:var(--blue); background:#fff; }
     </div>
     <div class="field">
       <label>결제 수단</label>
-      <div class="seg">
-        <button id="seg-fixed-card" class="active neutral" onclick="setFixedMethod('카드')">카드</button>
-        <button id="seg-fixed-cash" class="neutral" onclick="setFixedMethod('현금')">현금</button>
+      <div class="seg" style="margin-bottom:8px;">
+        <button id="seg-fixed-card" class="active neutral" onclick="setFixedMethod('카드')">💳 카드</button>
+        <button id="seg-fixed-cash" class="neutral" onclick="setFixedMethod('현금')">💵 현금</button>
       </div>
-    </div>
-    <div class="field" id="fixedAccountField" style="display:none;">
-      <label>현금 출처 계좌</label>
-      <select id="fixedAccount"></select>
+      <select id="fixedMethodSelect" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;background:var(--bg);color:var(--ink);" onchange="fixedMethod=this.value"></select>
     </div>
     <div class="toggle-row">
       <div class="txt">
@@ -1320,7 +1338,6 @@ if(state.darkMode) document.body.setAttribute('data-theme','dark');
 
 let curType = 'expense';
 let curCat = null;
-let curMethod = '카드';
 let fixedMethod = '카드';
 let editingId = null;
 let listView = 'list';
@@ -1367,11 +1384,22 @@ function save(){
 
 async function syncToSupabase(){
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/budget_data?id=eq.main`, {
+    // PATCH 시도 (기존 행 업데이트)
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/budget_data?id=eq.main`, {
       method: 'PATCH',
-      headers: SB_HEADERS,
+      headers: { ...SB_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
       body: JSON.stringify({ data: state, updated_at: new Date().toISOString() })
     });
+    // PATCH 후 실제로 반영됐는지 확인 (행이 없으면 Content-Range: */0)
+    const range = res.headers.get('Content-Range');
+    if(range && range.endsWith('/0')){
+      // 행이 없으므로 INSERT
+      await fetch(`${SUPABASE_URL}/rest/v1/budget_data`, {
+        method: 'POST',
+        headers: { ...SB_HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ id: 'main', data: state, updated_at: new Date().toISOString() })
+      });
+    }
   } catch(e){ console.log('sync failed', e); }
 }
 
@@ -1381,8 +1409,13 @@ async function loadFromSupabase(){
       headers: SB_HEADERS
     });
     const rows = await res.json();
-    if(!rows || !rows[0] || !rows[0].data || !rows[0].data.transactions) return null;
-    return rows[0].data;
+    if(!rows || !rows[0] || !rows[0].data) return null;
+    const d = rows[0].data;
+    // updated_at을 숫자 타임스탬프로 통일
+    if(rows[0].updated_at && !d.updatedAt){
+      d.updatedAt = new Date(rows[0].updated_at).getTime();
+    }
+    return d;
   } catch(e){ return null; }
 }
 
@@ -1495,12 +1528,13 @@ function switchTab(tab){
   if(tab==='savings') renderSavings();
   if(tab==='invest') renderBrokers();
   if(tab==='settings') renderCatMgmtList();
-  if(tab==='settings') loadAssetMemo();
+  if(tab==='settings') { loadAssetMemo(); renderPayMethodList(); }
 }
 
 function openModal(tx, presetDate, showContinue){
   document.getElementById('modal').classList.add('show');
   document.getElementById('continueAddRow').style.display = showContinue ? 'block' : 'none';
+  updateMethodSelect(tx ? (tx.method||'카드') : curMethod);
   if(tx){
     editingId = tx.id;
     document.getElementById('sheetTitle').textContent = '내역 수정';
@@ -1520,7 +1554,7 @@ function openModal(tx, presetDate, showContinue){
     document.getElementById('date').value = presetDate || new Date().toISOString().slice(0,10);
     document.getElementById('excludeToggle').checked = false;
     setType('expense');
-    setMethod('카드');
+    setMethod(curMethod);
   }
 }
 function closeModal(){ document.getElementById('modal').classList.remove('show'); }
@@ -1535,10 +1569,98 @@ function setType(t, presetCat){
   document.getElementById('methodField').style.display = (t==='expense') ? 'block' : 'none';
   renderCatGrid(presetCat);
 }
+// 결제수단 관리
+const DEFAULT_PAY_METHODS = {
+  '카드': ['신한카드', '현대카드', '삼성카드', '국민카드', '하나카드', '기타카드'],
+  '현금': ['현금', '카카오페이', '네이버페이', '토스페이']
+};
+function getPayMethods(){
+  const pm = state.payMethods;
+  // 배열이면(구버전) 무시하고 기본값 사용
+  if(!pm || Array.isArray(pm)) return DEFAULT_PAY_METHODS;
+  return pm;
+}
+
+let curMethodType = '카드'; // '카드' | '현금'
+let curMethod = '카드';
+
+function setMethodType(type){
+  curMethodType = type;
+  document.getElementById('seg-pay-card').classList.toggle('active', type==='카드');
+  document.getElementById('seg-pay-cash').classList.toggle('active', type==='현금');
+  updateMethodSelect();
+}
+
 function setMethod(m){
-  curMethod = m;
-  document.getElementById('seg-pay-card').classList.toggle('active', m==='카드');
-  document.getElementById('seg-pay-cash').classList.toggle('active', m==='현금');
+  const methods = getPayMethods();
+  const cashList = methods['현금'] || DEFAULT_PAY_METHODS['현금'];
+  const cardList = methods['카드'] || DEFAULT_PAY_METHODS['카드'];
+  // 기존 '카드'값이면 카드 첫번째로, '현금'이면 현금 첫번째로
+  if(m==='카드'){ curMethodType='카드'; curMethod=cardList[0]; }
+  else if(m==='현금'){ curMethodType='현금'; curMethod=cashList[0]; }
+  else if(cashList.includes(m)){ curMethodType='현금'; curMethod=m; }
+  else { curMethodType='카드'; curMethod=m; }
+  document.getElementById('seg-pay-card').classList.toggle('active', curMethodType==='카드');
+  document.getElementById('seg-pay-cash').classList.toggle('active', curMethodType==='현금');
+  updateMethodSelect(curMethod);
+}
+
+function updateMethodSelect(defaultVal){
+  const sel = document.getElementById('methodSelect');
+  if(!sel) return;
+  const methods = getPayMethods();
+  const list = methods[curMethodType] || DEFAULT_PAY_METHODS[curMethodType];
+  sel.innerHTML = list.map(m=>`<option value="${m}">${m}</option>`).join('');
+  const target = defaultVal || curMethod;
+  sel.value = list.includes(target) ? target : list[0];
+  curMethod = sel.value;
+}
+
+function renderPayMethodList(){
+  const box = document.getElementById('payMethodList');
+  if(!box) return;
+  const methods = getPayMethods();
+  let html = '';
+  ['카드','현금'].forEach(type=>{
+    html += `<div style="font-size:12px;color:var(--sub);font-weight:600;margin:10px 0 4px;">${type==='카드'?'💳 카드':'💵 현금'}</div>`;
+    (methods[type]||[]).forEach((m,i)=>{
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);">
+        <span style="font-size:13.5px;">${m}</span>
+        <span style="font-size:12px;color:var(--sub);cursor:pointer;padding:2px 6px;" onclick="deletePayMethod('${type}',${i})">삭제</span>
+      </div>`;
+    });
+  });
+  box.innerHTML = html;
+}
+
+function addPayMethod(){
+  const input = document.getElementById('newPayMethodInput');
+  const typeEl = document.getElementById('newPayMethodType');
+  const val = input.value.trim();
+  const type = typeEl ? typeEl.value : '카드';
+  if(!val){ toast('이름을 입력해주세요'); return; }
+  if(!state.payMethods) state.payMethods = {
+    '카드': [...DEFAULT_PAY_METHODS['카드']],
+    '현금': [...DEFAULT_PAY_METHODS['현금']]
+  };
+  if((state.payMethods[type]||[]).includes(val)){ toast('이미 있어요'); return; }
+  if(!state.payMethods[type]) state.payMethods[type] = [];
+  state.payMethods[type].push(val);
+  input.value = '';
+  save(); renderPayMethodList();
+  toast('추가됐어요');
+}
+
+function deletePayMethod(type, i){
+  if(!state.payMethods) state.payMethods = {
+    '카드': [...DEFAULT_PAY_METHODS['카드']],
+    '현금': [...DEFAULT_PAY_METHODS['현금']]
+  };
+  const list = state.payMethods[type] || [];
+  if(list.length<=1){ toast('최소 1개는 있어야 해요'); return; }
+  list.splice(i,1);
+  save(); renderPayMethodList();
+  toast('삭제됐어요');
 }
 function renderCatGrid(presetCat){
   const grid = document.getElementById('catGrid');
@@ -1622,16 +1744,27 @@ function render(){
   const savingsTotal = getSavingsForMonth(state.currentMonth);
   const balance = income - fixedTotal - expense - savingsTotal;
 
-  document.getElementById('varText').textContent = '-' + fmt(expense + fixedTotal);
+  document.getElementById('varText').textContent = '-' + fmt(expense);  // 소비지출 = 내역만
   document.getElementById('incomeText').textContent = '+' + fmt(income);
   document.getElementById('balanceText').textContent = fmt(balance);
   const savingsEl = document.getElementById('savingsText');
   if(savingsEl) savingsEl.textContent = savingsTotal > 0 ? '-' + fmt(savingsTotal) : '0원';
 
-  // 카드/현금 분리
-  const expenseCounted = counted.filter(t=>t.type==='expense');
-  const cardTotal = expenseCounted.filter(t=>(t.method||'카드')==='카드').reduce((s,t)=>s+t.amount,0);
-  const cashTotal = expenseCounted.filter(t=>t.method==='현금').reduce((s,t)=>s+t.amount,0);
+  // 카드/현금 = 내역 지출 + 고정지출 합산
+  const fixedList = state.fixedExpenses[state.currentMonth]||[];
+  const allExpenseForMethod = [
+    ...expenseCounted,
+    ...fixedList.map(f=>({method: f.method||'카드', amount: f.amount}))
+  ];
+  const methodGroups = {};
+  allExpenseForMethod.forEach(t=>{
+    const m = t.method||'카드';
+    methodGroups[m] = (methodGroups[m]||0) + t.amount;
+  });
+  // 카드계열(현금,카카오페이,네이버페이 제외) vs 현금계열
+  const cashLike = (getPayMethods()['현금'] || DEFAULT_PAY_METHODS['현금']);
+  const cardTotal = Object.entries(methodGroups).filter(([m])=>!cashLike.includes(m)).reduce((s,[,v])=>s+v,0);
+  const cashTotal = Object.entries(methodGroups).filter(([m])=>cashLike.includes(m)).reduce((s,[,v])=>s+v,0);
   document.getElementById('methodBreakdown').textContent = `${fmt(cardTotal)} · ${fmt(cashTotal)}`;
 
   // 전월 대비 비교
@@ -1665,7 +1798,16 @@ function render(){
     document.getElementById('fullListTitle').textContent = `검색 결과`;
     const q = searchQuery.toLowerCase();
     let full = state.transactions.filter(t=>(t.memo||'').toLowerCase().includes(q));
-    if(methodFilter!=='all') full = full.filter(t=>t.type==='income'||(t.method||'카드')===methodFilter);
+    if(methodFilter!=='all'){
+      const cashLike2=['현금','카카오페이','네이버페이','토스페이'];
+      full=full.filter(t=>{
+        if(t.type==='income') return true;
+        const m=t.method||'카드';
+        if(methodFilter==='카드') return !cashLike2.includes(m);
+        if(methodFilter==='현금') return cashLike2.includes(m);
+        return true;
+      });
+    }
     full = sortTxList(full);
     renderTxList('fullList', full, grouped, grouped);
   } else {
@@ -1673,7 +1815,16 @@ function render(){
     renderChips(tx);
     let full = [...tx];
     if(categoryFilter) full = full.filter(t=>t.category===categoryFilter);
-    if(methodFilter!=='all') full = full.filter(t=>t.type==='income'||(t.method||'카드')===methodFilter);
+    if(methodFilter!=='all'){
+      const cashLike2=['현금','카카오페이','네이버페이','토스페이'];
+      full=full.filter(t=>{
+        if(t.type==='income') return true;
+        const m=t.method||'카드';
+        if(methodFilter==='카드') return !cashLike2.includes(m);
+        if(methodFilter==='현금') return cashLike2.includes(m);
+        return true;
+      });
+    }
     full = sortTxList(full);
     renderTxList('fullList', full, grouped, false);
   }
@@ -1941,21 +2092,28 @@ function shiftDateToMonth(dateStr, monthKey){
   const d = Math.min(day, lastDay);
   return `${monthKey}-${String(d).padStart(2,'0')}`;
 }
+let fixedMethodType = '카드';
 function setFixedMethod(m){
-  fixedMethod = m;
-  document.getElementById('seg-fixed-card').classList.toggle('active', m==='카드');
-  document.getElementById('seg-fixed-cash').classList.toggle('active', m==='현금');
-  document.getElementById('fixedAccountField').style.display = (m==='현금') ? 'block' : 'none';
-  if(m==='현금') populateFixedAccountSelect();
+  // m이 '카드'/'현금' 타입이면 타입 변경, 세부 값이면 세부 선택
+  const methods = getPayMethods();
+  const cashList = methods['현금'] || DEFAULT_PAY_METHODS['현금'];
+  const cardList = methods['카드'] || DEFAULT_PAY_METHODS['카드'];
+  if(m==='카드'){ fixedMethodType='카드'; fixedMethod=cardList[0]; }
+  else if(m==='현금'){ fixedMethodType='현금'; fixedMethod=cashList[0]; }
+  else if(cashList.includes(m)){ fixedMethodType='현금'; fixedMethod=m; }
+  else { fixedMethodType='카드'; fixedMethod=m; }
+  document.getElementById('seg-fixed-card').classList.toggle('active', fixedMethodType==='카드');
+  document.getElementById('seg-fixed-cash').classList.toggle('active', fixedMethodType==='현금');
+  updateFixedMethodSelect(fixedMethod);
 }
-function populateFixedAccountSelect(){
-  const sel = document.getElementById('fixedAccount');
+function updateFixedMethodSelect(defaultVal){
+  const sel = document.getElementById('fixedMethodSelect');
   if(!sel) return;
-  if(state.assets.length===0){
-    sel.innerHTML = `<option value="">등록된 계좌가 없어요 (자산 탭에서 추가)</option>`;
-    return;
-  }
-  sel.innerHTML = state.assets.map(a=>`<option value="${a.name}">${a.name}${a.accountNo ? ' ('+a.accountNo+')' : ''}</option>`).join('');
+  const methods = getPayMethods();
+  const list = methods[fixedMethodType] || DEFAULT_PAY_METHODS[fixedMethodType];
+  sel.innerHTML = list.map(m=>`<option value="${m}">${m}</option>`).join('');
+  sel.value = list.includes(defaultVal) ? defaultVal : list[0];
+  fixedMethod = sel.value;
 }
 function renderFixedCard(){
   const desc = document.getElementById('fixedDesc');
@@ -2014,10 +2172,6 @@ function openFixedModal(f){
     document.getElementById('fixedDate').value = f.date || '';
     document.getElementById('fixedRecurring').checked = f.recurring!==false;
     setFixedMethod(f.method || '카드');
-    if(f.method==='현금'){
-      populateFixedAccountSelect();
-      document.getElementById('fixedAccount').value = f.account || '';
-    }
   } else {
     fixedEditingId = null;
     document.getElementById('fixedSheetTitle').textContent = '고정 지출 추가';
@@ -2038,13 +2192,7 @@ function saveFixed(){
   const date = document.getElementById('fixedDate').value || null;
   if(!name || !amt){ toast('항목명과 금액을 입력해주세요'); return; }
   const recurring = document.getElementById('fixedRecurring').checked;
-  const item = { id: fixedEditingId || (Date.now()+''), name, amount: amt, date, method: fixedMethod, recurring };
-  if(fixedMethod==='현금'){
-    const acc = document.getElementById('fixedAccount').value;
-    item.account = acc || null;
-  } else {
-    item.account = null;
-  }
+  const item = { id: fixedEditingId || (Date.now()+''), name, amount: amt, date, method: fixedMethod, recurring, account: null };
   const monthKey = date ? date.slice(0,7) : state.currentMonth;
   if(!state.fixedExpenses[monthKey]) state.fixedExpenses[monthKey] = [];
   if(fixedEditingId){
@@ -2559,6 +2707,13 @@ function setCatMgmtType(t){
   document.getElementById('seg-catmgmt-inc').classList.toggle('active', t==='income');
   renderCatMgmtList();
 }
+let fixedSectionOpen = true;
+function toggleFixedSection(){
+  fixedSectionOpen = !fixedSectionOpen;
+  document.getElementById('fixedBody').style.display = fixedSectionOpen ? 'block' : 'none';
+  document.getElementById('fixedChevron').textContent = fixedSectionOpen ? '▾' : '▸';
+}
+
 function renderCatMgmtList(){
   const box = document.getElementById('catMgmtList');
   const list = state.categories[catMgmtType];
@@ -3508,6 +3663,7 @@ function resetAll(){
     const localTime = state.updatedAt || 0;
     const remoteTime = remote.updatedAt || 0;
     if(remoteTime >= localTime){
+      // 서버가 최신 → 서버 데이터 사용
       state = remote;
       state.transactions.forEach(t=>{
         if(t.method===undefined) t.method='카드';
@@ -3530,6 +3686,14 @@ function resetAll(){
       if(state.darkMode===undefined) state.darkMode=false;
       if(state.darkMode) document.body.setAttribute('data-theme','dark');
       saveLocal();
+    } else {
+      // 로컬이 더 최신 → 서버에 올리기
+      syncToSupabase();
+    }
+  } else if(!remote) {
+    // 서버에 데이터 없음 → 로컬 데이터를 서버에 올리기
+    if(state.transactions && state.transactions.length > 0){
+      syncToSupabase();
     }
   }
   render();
