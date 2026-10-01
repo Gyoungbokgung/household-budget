@@ -1783,7 +1783,6 @@ function render(){
   }
 
   renderFixedCard();
-  populateFixedAccountSelect();
   renderCatRows(expenseCounted, expense);
 
   const recent = [...tx].sort((a,b)=>b.id-a.id).slice(0,5);
