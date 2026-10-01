@@ -1738,7 +1738,8 @@ function render(){
   const tx = getMonthTx();
   const counted = tx.filter(t=>!t.excluded);
   const income = counted.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = counted.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const expenseCounted = counted.filter(t=>t.type==='expense');
+  const expense = expenseCounted.reduce((s,t)=>s+t.amount,0);
   const fixedTotal = getFixedList().reduce((s,f)=>s+f.amount,0);
   const savingsTotal = getSavingsForMonth(state.currentMonth);
   const balance = income - fixedTotal - expense - savingsTotal;
@@ -1798,7 +1799,7 @@ function render(){
     const q = searchQuery.toLowerCase();
     let full = state.transactions.filter(t=>(t.memo||'').toLowerCase().includes(q));
     if(methodFilter!=='all'){
-      const cashLike2=['현금','카카오페이','네이버페이','토스페이'];
+      const cashLike2 = getPayMethods()['현금'] || DEFAULT_PAY_METHODS['현금'];
       full=full.filter(t=>{
         if(t.type==='income') return true;
         const m=t.method||'카드';
@@ -1815,7 +1816,7 @@ function render(){
     let full = [...tx];
     if(categoryFilter) full = full.filter(t=>t.category===categoryFilter);
     if(methodFilter!=='all'){
-      const cashLike2=['현금','카카오페이','네이버페이','토스페이'];
+      const cashLike2 = getPayMethods()['현금'] || DEFAULT_PAY_METHODS['현금'];
       full=full.filter(t=>{
         if(t.type==='income') return true;
         const m=t.method||'카드';
